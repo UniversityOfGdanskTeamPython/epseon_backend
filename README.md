@@ -45,8 +45,13 @@ If they fail or change files, you will have to re-add changes and commit again.
 
 ## Build from source
 
-To build Epseon Backend from source make sure you have `poetry` environment activated
-with:
+To build Epseon Backend you will need some dependencies which are not possible to
+download from PyPI:
+
+-   Vulkan SDK, version `1.3.268` is recommended, but it will be downloaded
+    automatically on Windows, Linux and MacO
+
+from source make sure you have `poetry` environment activated with:
 
 ```
 poetry shell
