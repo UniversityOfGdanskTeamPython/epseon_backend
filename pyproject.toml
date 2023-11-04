@@ -96,7 +96,6 @@ requires = [
 ]
 build-backend = "poetry.core.masonry.api"
 
-
 [tool.poe.tasks]
 # -------------------------------------------------------------------------------------
 # git hooks
@@ -110,13 +109,19 @@ install-hooks = [
 run-code-quality-checks = [{ cmd = "pre-commit run --all-files -v" }]
 # -------------------------------------------------------------------------------------
 run-unit-tests = [
-    { cmd = "pytest --log-level=DEBUG -s -n logical --cov=epseon_backend --cov-report=term-missing:skip-covered" },
+    { cmd = "pytest --log-level=DEBUG -s -n logical --cov=epseon_backend --cov=python/test" },
 ]
-run-type-checks = [{ cmd = "mypy src/epseon_backend test/ scripts/" }]
+run-type-checks = [{ cmd = "mypy python/epseon_backend python/test/ scripts/" }]
+
+
+[tool.pytest.ini_options]
+minversion = "7.2.0"
+norecursedirs = ["external"]
+testpaths = ["./python/test/"]
 
 [tool.isort]
 profile = "black"
-src_paths = ["src", "test"]
+src_paths = ["python/epseon_backend", "python/test"]
 
 [tool.black]
 line-length = 88
@@ -140,7 +145,7 @@ ignore = [
 ]
 show-fixes = true
 target-version = "py38"
-src = ["src", "test"]
+src = ["python/epseon_backend", "python/test"]
 
 [tool.ruff.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
