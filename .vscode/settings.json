@@ -85,8 +85,8 @@
     "cSpell.words": ["Argmaster", "mateuszzalewski", "Szpy"],
     "cSpell.customDictionaries": {
         "custom-dictionary-workspace": {
-            "name": "custom-dictionary-workspace",
-            "path": "${workspaceFolder:epseon_backend}/.cspell/custom-dictionary-workspace.txt",
+            "name": "workspace-dictionary",
+            "path": "${workspaceFolder:epseon_backend}/workspace-dictionary.txt",
             "addWords": true,
             "scope": "workspace"
         }

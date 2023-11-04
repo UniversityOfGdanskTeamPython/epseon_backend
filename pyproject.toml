@@ -39,6 +39,18 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Visualization",
     "Topic :: Scientific/Engineering :: Physics",
 ]
+include = [
+    { path = "external", format = "sdist" },
+    { path = "docs", format = "sdist" },
+    { path = "cpp", format = "sdist" },
+    { path = "test", format = "sdist" },
+    { path = "python/epseon_backend/device/cpu/_libepseon_cpu.*", format = "wheel" },
+    { path = "python/epseon_backend/device/gpu/_libepseon_gpu.*", format = "wheel" },
+    { path = "python/epseon_backend/shaders/*.glsl", format = [
+        "sdist",
+        "wheel",
+    ] },
+]
 packages = [{ include = "epseon_backend", from = "python" }]
 build = "build.py"
 
@@ -80,7 +92,6 @@ pygments = "^2.15.1"
 requires = [
     "poetry-core>=1.8.1,<1.9",
     "cmake>=3.27,<3.28",
-    "requests>=2.31,<2.32",
     "setuptools>=68.2,<69.0",
 ]
 build-backend = "poetry.core.masonry.api"
