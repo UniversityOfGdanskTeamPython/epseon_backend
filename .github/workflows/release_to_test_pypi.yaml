@@ -16,6 +16,10 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v3.6.0
+              with:
+                  # Whether to checkout submodules: `true` to checkout submodules or `recursive` to
+                  # recursively checkout submodules. Default: false
+                  submodules: "recursive"
 
             - name: Set up Python 3.8
               uses: actions/setup-python@v4.7.0

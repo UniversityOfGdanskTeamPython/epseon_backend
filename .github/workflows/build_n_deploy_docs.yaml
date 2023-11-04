@@ -27,6 +27,9 @@ jobs:
               uses: actions/checkout@v3.6.0
               with:
                   fetch-depth: 0 # Fetch everything so gh-pages branch is there.
+                  # Whether to checkout submodules: `true` to checkout submodules or `recursive` to
+                  # recursively checkout submodules. Default: false
+                  submodules: "recursive"
 
             - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v4.7.0
