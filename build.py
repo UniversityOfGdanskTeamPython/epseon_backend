@@ -12,6 +12,42 @@ class Builder:
 
     def __init__(self) -> None:
         """Initialize builder object."""
+        self.repo_path = Path(__file__).parent
+        self.prepare_submodules()
+
+    def prepare_submodules(self) -> None:
+        """Prepare dependency submodules."""
+        self.git("submodule", "init")
+        self.git(
+            "-C",
+            f"{self.repo_path.as_posix()}/external/googletest",
+            "fetch",
+            "--tags",
+        )
+        self.git(
+            "-C",
+            f"{self.repo_path.as_posix()}/external/googletest",
+            "checkout",
+            "release-1.12.1",
+        )
+
+    def git(self, *arg: str) -> None:
+        """Run git command."""
+        try:
+            subprocess.run(
+                executable="git",
+                args=[
+                    "git",
+                    *arg,
+                ],
+                cwd=self.repo_path.as_posix(),
+                capture_output=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            sys.stdout.write(e.stdout.decode("utf-8"))
+            sys.stderr.write(e.stderr.decode("utf-8"))
+            raise
 
     def build(self) -> None:
         """Build extension module."""
@@ -30,7 +66,7 @@ class Builder:
                     "import cmake;cmake.cmake()",
                     *arg,
                 ],
-                cwd=Path.cwd().as_posix(),
+                cwd=self.repo_path.as_posix(),
                 capture_output=True,
                 check=True,
             )

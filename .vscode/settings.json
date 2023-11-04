@@ -86,7 +86,7 @@
     "cSpell.customDictionaries": {
         "custom-dictionary-workspace": {
             "name": "workspace-dictionary",
-            "path": "${workspaceFolder:epseon_backend}/workspace-dictionary.txt",
+            "path": "${workspaceFolder:epseon_backend}/.vscode/workspace-dictionary.txt",
             "addWords": true,
             "scope": "workspace"
         }
