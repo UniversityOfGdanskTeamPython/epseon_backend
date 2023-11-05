@@ -77,3 +77,15 @@ jobs:
 
             - name: Run unit tests
               run: poetry run poe run-unit-tests
+
+            - name: Build wheel and sdist
+              run: poetry build
+
+            - name: Upload built wheel and sdist
+              uses: actions/upload-artifact@v3
+              with:
+                  name: |
+                      build-${{ github.sha }}-${{ matrix.os }}-${{ matrix.python-version }}
+                  path: |
+                      ${{ github.workspace }}/dist/*.whl
+                  if-no-files-found: "ignore"
