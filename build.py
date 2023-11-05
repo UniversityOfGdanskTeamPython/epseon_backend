@@ -35,7 +35,6 @@ class Builder:
         """Run git command."""
         try:
             subprocess.run(
-                executable="git",
                 args=[
                     "git",
                     *arg,
