@@ -101,3 +101,16 @@ sudo make altinstall
 
 Altinstall above causes Python to be installed as a secondary Python version. If it is
 only Python version you have on your machine, use `sudo make install` instead.
+
+## Inspecting shared library symbol tables
+
+Inspecting shared library symbol tables can be done with GNU `nm` tools. To un-mangle
+symbol names you can use GNU `c++filt` from `binutils` apt package.
+
+```
+nm python/epseon_backend/device/gpu/_libepseon_gpu.so | c++filt
+```
+
+```
+nm python/epseon_backend/device/cpu/_libepseon_cpu.so | c++filt
+```

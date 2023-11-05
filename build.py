@@ -53,7 +53,7 @@ class Builder:
 
     def build(self) -> None:
         """Build extension module."""
-        self.cmake("-S", ".", "-B", "build", "-DCMAKE_BUILD_TYPE=Release")
+        self.cmake("-S", ".", "-B", "build")
         self.cmake("--build", "build", "--target", "epseon_cpu")
         self.cmake("--build", "build", "--target", "epseon_gpu")
 
