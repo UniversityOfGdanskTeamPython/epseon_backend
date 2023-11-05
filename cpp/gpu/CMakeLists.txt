@@ -54,13 +54,22 @@ set(epseon_gpu_LINK_LIBS
 target_include_directories(epseon_gpu PUBLIC ${epseon_gpu_INCLUDE})
 target_link_libraries(epseon_gpu ${epseon_gpu_LINK_LIBS})
 
-add_custom_command(
-    TARGET epseon_gpu POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy
-        "$<TARGET_FILE:epseon_gpu>"
-        "${REPOSITORY_ROOT}/python/epseon_backend/device/gpu/_$<TARGET_FILE_NAME:epseon_gpu>"
-)
 
+if(WIN32)
+    add_custom_command(
+        TARGET epseon_gpu POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy
+            "$<TARGET_FILE:epseon_gpu>"
+            "${REPOSITORY_ROOT}/python/epseon_backend/device/gpu/_libepseon_gpu.pyd"
+    )
+else()
+    add_custom_command(
+        TARGET epseon_gpu POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy
+            "$<TARGET_FILE:epseon_gpu>"
+            "${REPOSITORY_ROOT}/python/epseon_backend/device/gpu/_libepseon_gpu.so"
+    )
+endif()
 
 file(GLOB_RECURSE TEST_SOURCES "${PROJECT_SOURCE_DIR}/test/*.cpp")
 
