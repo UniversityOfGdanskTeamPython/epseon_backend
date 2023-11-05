@@ -108,7 +108,12 @@ install-hooks = [
 # hook triggers
 run-code-quality-checks = [{ cmd = "pre-commit run --all-files -v" }]
 # -------------------------------------------------------------------------------------
+cpp-build-all = [
+    { cmd = "python -c 'import cmake;cmake.cmake()' -S . -B build" },
+    { cmd = "python -c 'import cmake;cmake.cmake()' --build build --target all" },
+]
 run-unit-tests = [
+    { cmd = "python -c 'import cmake;cmake.ctest()' --test-dir build" },
     { cmd = "pytest --log-level=DEBUG -s -n logical --cov=epseon_backend --cov=python/test" },
 ]
 run-type-checks = [{ cmd = "mypy python/epseon_backend python/test/ scripts/" }]
