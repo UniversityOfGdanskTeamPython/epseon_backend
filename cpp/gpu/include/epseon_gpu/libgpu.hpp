@@ -2,6 +2,7 @@
 
 #include "epseon/libepseon.hpp"
 #include <iostream>
+#include <vulkan/vulkan_raii.hpp>
 
 SHARED_EXPORT void hello();
 
