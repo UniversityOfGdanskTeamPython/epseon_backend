@@ -34,7 +34,7 @@ class Builder:
     def git(self, *arg: str) -> None:
         """Run git command."""
         try:
-            subprocess.run(
+            r = subprocess.run(
                 args=[
                     "git",
                     *arg,
@@ -47,17 +47,20 @@ class Builder:
             sys.stdout.write(e.stdout.decode("utf-8"))
             sys.stderr.write(e.stderr.decode("utf-8"))
             raise
+        else:
+            sys.stdout.write(r.stdout.decode("utf-8"))
+            sys.stderr.write(r.stderr.decode("utf-8"))
 
     def build(self) -> None:
         """Build extension module."""
-        self.cmake("-S", ".", "-B", "build")
+        self.cmake("-S", ".", "-B", "build", "-DCMAKE_BUILD_TYPE=Release")
         self.cmake("--build", "build", "--target", "epseon_cpu")
         self.cmake("--build", "build", "--target", "epseon_gpu")
 
     def cmake(self, *arg: str) -> None:
         """Run cmake command. If fails, raises CalledProcessError."""
         try:
-            subprocess.run(
+            r = subprocess.run(
                 executable=sys.executable,
                 args=[
                     sys.executable,
@@ -73,6 +76,9 @@ class Builder:
             sys.stdout.write(e.stdout.decode("utf-8"))
             sys.stderr.write(e.stderr.decode("utf-8"))
             raise
+        else:
+            sys.stdout.write(r.stdout.decode("utf-8"))
+            sys.stderr.write(r.stderr.decode("utf-8"))
 
 
 Builder().build()

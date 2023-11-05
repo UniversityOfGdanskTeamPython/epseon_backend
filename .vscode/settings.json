@@ -91,5 +91,6 @@
             "scope": "workspace"
         }
     },
-    "cmake.cmakePath": "cmake"
+    "cmake.cmakePath": "cmake",
+    "cmake.configureArgs": ["-DCMAKE_BUILD_TYPE=Release"]
 }
