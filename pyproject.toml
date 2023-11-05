@@ -44,6 +44,7 @@ include = [
     { path = "docs", format = "sdist" },
     { path = "cpp", format = "sdist" },
     { path = "test", format = "sdist" },
+    { path = "mkdocs.yaml", format = "sdist" },
     { path = "python/epseon_backend/device/cpu/_libepseon_cpu.*", format = "wheel" },
     { path = "python/epseon_backend/device/gpu/_libepseon_gpu.*", format = "wheel" },
     { path = "python/epseon_backend/shaders/*.glsl", format = [

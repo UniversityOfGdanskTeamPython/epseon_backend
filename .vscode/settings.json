@@ -90,5 +90,6 @@
             "addWords": true,
             "scope": "workspace"
         }
-    }
+    },
+    "cmake.cmakePath": "cmake"
 }

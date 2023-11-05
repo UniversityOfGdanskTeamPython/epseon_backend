@@ -67,8 +67,13 @@ jobs:
             - name: C++ build all
               run: poetry run poe cpp-build-all
 
+            - name: "Debug: display list of build results from `dist/`"
+              if: success() || failure()
+              run: |
+                  echo "dist/*.*"
+                  poetry run python -c "from pathlib import Path;print('\n'.join(s.as_posix() for s in (Path.cwd() / 'dist').rglob('*.*')))"
+                  echo "build/*.*"
+                  poetry run python -c "from pathlib import Path;print('\n'.join(s.as_posix() for s in (Path.cwd() / 'build').rglob('*.*')))"
+
             - name: Run unit tests
               run: poetry run poe run-unit-tests
-
-            - name: Dump coverage
-              run: poetry run coverage xml

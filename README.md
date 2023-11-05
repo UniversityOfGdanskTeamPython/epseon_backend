@@ -81,3 +81,23 @@ mkdocs build
 
 **Important** this is not how CI builds documentation, do not use this approach to
 upload documentation to GitHub pages.
+
+## Build Python from source on Linux
+
+When building Python interpreter on Linux to be used for extension development,
+`libpython3.x` must be compiled with `-fPIC` to generate code which can be embedded into
+shared library. To do that configure Python build with following command:
+
+```bash
+CFLAGS=-fPIC ./configure --enable-shared=no --enable-optimizations
+```
+
+then you can follow up same as in any other build:
+
+```bash
+make
+sudo make altinstall
+```
+
+Altinstall above causes Python to be installed as a secondary Python version. If it is
+only Python version you have on your machine, use `sudo make install` instead.
