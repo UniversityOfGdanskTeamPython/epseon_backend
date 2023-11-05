@@ -1,26 +1,6 @@
 #pragma once
 
-#define PY_SSIZE_T_CLEAN
-
-#if defined(_DEBUG) &&                                                                 \
-    (defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__))
-// Workaround for a VS 2022 issue.
-// NOTE: This workaround knowingly violates the Python.h include order requirement:
-// https://docs.python.org/3/c-api/intro.html#include-files
-// See https://github.com/pybind/pybind11/pull/3497 for full context.
-    #include <yvals.h>
-    #if _MSVC_STL_VERSION >= 143
-        #include <crtdefs.h>
-    #endif
-    #undef _DEBUG
-    #include <Python.h>
-    #define _DEBUG
-#else
-    #include <Python.h>
-#endif
-
 #include "epseon/libepseon.hpp"
-
 #include <iostream>
 
 SHARED_EXPORT void hello();
@@ -44,8 +24,8 @@ static PyMethodDef LibGPUMethods[] = {
 // The arguments of this structure tell Python what to call your extension,
 // what it's methods are and where to look for its method definitions
 static struct PyModuleDef libepseon_gpu = {
-    PyModuleDef_HEAD_INIT, "greet", /* name of module */
-    NULL,                           /* module documentation, may be NULL */
+    PyModuleDef_HEAD_INIT, "_libepseon_gpu", /* name of module */
+    NULL,                                    /* module documentation, may be NULL */
     -1, /* size of per-interpreter state of the module, or -1 if the module keeps state
            in global variables. */
     LibGPUMethods};

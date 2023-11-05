@@ -148,6 +148,8 @@ ignore = [
     "TCH001", # Move application import {} into a type-checking block
     "D105",   # Adding docstrings in all magic methods doesn't make sense, as usually they are just boilerplate to support operators.
     "FIX002", # Line contains TODO, consider resolving the issue
+    "PYI044", # Checks for the presence of the from __future__ import annotations import statement in stub files. In our case it's easier to ignore it than add exceptions to auto-adding this import.
+    "PYI021", # Checks for the presence of docstrings in stub files. - Otherwise docstrings are not visible in VSCode GUI, so they have to be duplicated between extension libraries and stub files.
 ]
 show-fixes = true
 target-version = "py38"

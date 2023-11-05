@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 enable_testing()
 
+find_package(Python3 REQUIRED COMPONENTS Development)
 file(GLOB_RECURSE epseon_cpu_SOURCE "${PROJECT_SOURCE_DIR}/source/*.c*")
 
 add_library(
@@ -20,20 +21,33 @@ add_library(
 set(epseon_cpu_INCLUDE
     "${PROJECT_SOURCE_DIR}/include"
     "${PROJECT_SOURCE_DIR}/../include"
+    "${Python3_INCLUDE_DIRS}"
+)
+set(epseon_cpu_LINK_LIBS
+    "${Python3_LIBRARIES}"
 )
 target_include_directories(epseon_cpu PUBLIC ${epseon_cpu_INCLUDE})
-add_custom_command(
-    TARGET epseon_cpu POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy
-        "$<TARGET_FILE:epseon_cpu>"
-        "${REPOSITORY_ROOT}/python/epseon_backend/device/cpu/_$<TARGET_FILE_NAME:epseon_cpu>"
-)
-
+target_link_libraries(epseon_cpu ${epseon_cpu_LINK_LIBS})
+if(WIN32)
+    add_custom_command(
+        TARGET epseon_cpu POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy
+            "$<TARGET_FILE:epseon_cpu>"
+            "${REPOSITORY_ROOT}/python/epseon_backend/device/cpu/_libepseon_cpu.pyd"
+    )
+else()
+    add_custom_command(
+        TARGET epseon_cpu POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy
+            "$<TARGET_FILE:epseon_cpu>"
+            "${REPOSITORY_ROOT}/python/epseon_backend/device/cpu/_libepseon_cpu.so"
+    )
+endif()
 file(GLOB_RECURSE TEST_SOURCES "${PROJECT_SOURCE_DIR}/test/*.cpp")
 
 # Define the test executable
 add_executable(epseon_cpu_tests ${TEST_SOURCES})
-target_link_libraries(epseon_cpu_tests gtest_main epseon_cpu)
+target_link_libraries(epseon_cpu_tests gtest_main epseon_cpu ${epseon_cpu_LINK_LIBS})
 target_include_directories(epseon_cpu_tests PRIVATE ${epseon_cpu_INCLUDE})
 
 # Add the tests to the GoogleTest framework

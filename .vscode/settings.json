@@ -91,5 +91,6 @@
             "scope": "workspace"
         }
     },
-    "cmake.cmakePath": "cmake"
+    "cmake.cmakePath": "cmake",
+    "python.analysis.exclude": ["external/", "site/", "docs/macros/"]
 }
