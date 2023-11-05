@@ -35,7 +35,7 @@ static PyObject* greet(PyObject* self, PyObject* args) {
 // ml_meth: Function pointer to the method implementation
 // ml_flags: Flags indicating special features or restrictions of the method, such as
 // METH_NOARGS ml_doc:  Points to the contents of the docstring
-static PyMethodDef GreetMethods[] = {
+static PyMethodDef LibGPUMethods[] = {
     {"greet", greet, METH_NOARGS, "Greet the world."},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
@@ -48,7 +48,7 @@ static struct PyModuleDef libepseon_gpu = {
     NULL,                           /* module documentation, may be NULL */
     -1, /* size of per-interpreter state of the module, or -1 if the module keeps state
            in global variables. */
-    GreetMethods};
+    LibGPUMethods};
 
 // Module initialization function
 PyMODINIT_FUNC PyInit__libepseon_gpu(void) {
