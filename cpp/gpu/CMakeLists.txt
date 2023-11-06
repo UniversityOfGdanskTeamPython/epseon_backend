@@ -54,6 +54,7 @@ set(epseon_gpu_INCLUDE
     PRIVATE "${Vulkan_INCLUDE_DIRS}"
 )
 set(epseon_gpu_LINK_LIBS
+    PRIVATE dl
     PRIVATE "${Python3_LIBRARIES}"
     PRIVATE "${Vulkan_LIBRARIES}"
 )

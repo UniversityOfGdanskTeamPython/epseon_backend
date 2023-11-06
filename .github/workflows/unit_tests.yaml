@@ -35,14 +35,14 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                os: [ubuntu-latest, windows-latest, macOS-latest]
+                os: [ubuntu-latest]
                 python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
         env:
             OS: ${{ matrix.os }}
             PYTHON: ${{ matrix.python-version }}
 
-        runs-on: ${{ matrix.os }}
+        runs-on: ${{ matrix.os }} # "linux-x64-gpu"
 
         steps:
             - name: Checkout code
@@ -58,6 +58,22 @@ jobs:
                   python-version: ${{ matrix.python-version }}
                   architecture: "x64"
 
+            - name: Install SSH key
+              uses: shimataro/ssh-key-action@v2
+              with:
+                  key: ${{ secrets.SSH_HOST_KEY }}
+                  name: id_rsa
+                  known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+
+            - name: Copy Shiftshader
+              run: |
+                  mkdir $(pwd)/shiftshader
+                  scp -v -P ${{ secrets.SSH_PORT }} "${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/resources/ubuntu-latest/shiftshader/libvk_swiftshader.so" "$(pwd)/shiftshader/libvk_swiftshader.so"
+                  scp -v -P ${{ secrets.SSH_PORT }} "${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/resources/ubuntu-latest/shiftshader/libvulkan.so.1" "$(pwd)/shiftshader/libvulkan.so.1"
+                  scp -v -P ${{ secrets.SSH_PORT }} "${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/resources/ubuntu-latest/shiftshader/vk_swiftshader_icd.json" "$(pwd)/shiftshader/vk_swiftshader_icd.json"
+                  ls -la
+                  ls -la shiftshader
+
             - name: Set up Vulkan SDK
               uses: humbletim/setup-vulkan-sdk@v1.2.0
               with:
@@ -71,10 +87,12 @@ jobs:
               run: poetry install --no-cache --sync
 
             - name: C++ build all
-              run: poetry run poe cpp-build-all
+              run: |
+                  poetry build
+                  poetry run poe cpp-build-all
 
             - name: "Debug: display list of build results from `dist/`"
-              if: success() || failure()
+              if: failure()
               run: |
                   echo "dist/*.*"
                   poetry run python -c "from pathlib import Path;print('\n'.join(s.as_posix() for s in (Path.cwd() / 'dist').rglob('*.*')))"
@@ -82,10 +100,13 @@ jobs:
                   poetry run python -c "from pathlib import Path;print('\n'.join(s.as_posix() for s in (Path.cwd() / 'build').rglob('*.*')))"
 
             - name: Run unit tests
-              run: poetry run poe run-unit-tests
-
-            - name: Build wheel and sdist
-              run: poetry build
+              run: |
+                  export VK_ICD_FILENAMES="$(pwd)/shiftshader/vk_swiftshader_icd.json"
+                  export LD_LIBRARY_PATH="$(pwd)/shiftshader"
+                  pwd
+                  ls -la "$(pwd)/shiftshader/"
+                  ls -la "$(pwd)/"
+                  poetry run poe run-unit-tests
 
             - name: Upload built wheel and sdist
               uses: actions/upload-artifact@v3

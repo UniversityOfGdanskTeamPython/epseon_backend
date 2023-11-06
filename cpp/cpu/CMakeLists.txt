@@ -25,6 +25,7 @@ set(epseon_cpu_INCLUDE
     PRIVATE "${Python3_INCLUDE_DIRS}"
 )
 set(epseon_cpu_LINK_LIBS
+    PRIVATE dl
     "${Python3_LIBRARIES}"
 )
 target_include_directories(epseon_cpu

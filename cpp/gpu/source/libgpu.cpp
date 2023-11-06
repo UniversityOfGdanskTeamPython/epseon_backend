@@ -2,6 +2,7 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "vulkan/vulkan.hpp"
 #include "vulkan/vulkan_core.h"
+#include "vulkan/vulkan_enums.hpp"
 #include "vulkan/vulkan_handles.hpp"
 #include "vulkan/vulkan_raii.hpp"
 #include "vulkan/vulkan_structs.hpp"
@@ -9,6 +10,7 @@
 #include <optional>
 #include <sstream>
 #include <utility>
+#include <vector>
 
 SHARED_EXPORT void hello() {
     std::cout << "hello world!" << std::endl;
@@ -65,11 +67,16 @@ namespace epseon {
                 .setEngineVersion(version)
                 .setPEngineName("libepseon_gpu");
 
-            auto instanceCreateInfo = vk::InstanceCreateInfo()
-                                          .setFlags({})
-                                          .setEnabledExtensionCount(0)
-                                          .setPEnabledExtensionNames({})
-                                          .setPApplicationInfo(applicationInfo.get());
+            std::vector<const char*> instanceExtensions{
+                VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
+            };
+
+            auto instanceCreateInfo =
+                vk::InstanceCreateInfo()
+                    .setFlags({vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR})
+                    .setEnabledExtensionCount(instanceExtensions.size())
+                    .setPEnabledExtensionNames(instanceExtensions)
+                    .setPApplicationInfo(applicationInfo.get());
             auto instance = std::make_unique<vk::raii::Instance>(
                 std::move(context->createInstance(instanceCreateInfo))
             );
