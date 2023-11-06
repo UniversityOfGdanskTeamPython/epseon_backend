@@ -21,6 +21,7 @@ add_library(
 set(epseon_cpu_INCLUDE
     PUBLIC "${PROJECT_SOURCE_DIR}/include"
     PRIVATE "${PROJECT_SOURCE_DIR}/../include"
+    PRIVATE "${REPOSITORY_ROOT}/external/spdlog/include"
     PRIVATE "${Python3_INCLUDE_DIRS}"
 )
 set(epseon_cpu_LINK_LIBS

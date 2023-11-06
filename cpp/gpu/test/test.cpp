@@ -3,9 +3,9 @@
 
 namespace LibGPU {
 
-    class LibGPUTest : public ::testing::Test {};
+    class LibGPUTestA : public ::testing::Test {};
 
-    TEST_F(LibGPUTest, TestHello) {
+    TEST_F(LibGPUTestA, TestHello) {
         hello();
     }
 

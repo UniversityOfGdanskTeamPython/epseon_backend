@@ -30,6 +30,18 @@ class Builder:
             "checkout",
             "release-1.12.1",
         )
+        self.git(
+            "-C",
+            f"{self.repo_path.as_posix()}/external/spdlog",
+            "fetch",
+            "--tags",
+        )
+        self.git(
+            "-C",
+            f"{self.repo_path.as_posix()}/external/spdlog",
+            "checkout",
+            "v1.12.0",
+        )
 
     def git(self, *arg: str) -> None:
         """Run git command."""

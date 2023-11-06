@@ -7,7 +7,6 @@ NamespaceIndentation: All
 PointerAlignment: Left
 ReferenceAlignment: Left
 PackConstructorInitializers: Never
-AlignAfterOpenBracket: Align
 AlignConsecutiveDeclarations: AcrossComments
 AlignConsecutiveAssignments: AcrossComments
 AlignConsecutiveBitFields: AcrossComments
@@ -17,3 +16,10 @@ AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Empty
 AlwaysBreakTemplateDeclarations: Yes
 IndentPPDirectives: BeforeHash
+AlignAfterOpenBracket: BlockIndent
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+BinPackParameters: false
+BinPackArguments: false
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: Always

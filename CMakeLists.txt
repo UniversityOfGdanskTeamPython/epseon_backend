@@ -15,6 +15,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(REPOSITORY_ROOT "${PROJECT_SOURCE_DIR}")
 
+add_subdirectory("external/spdlog")
 # Add GoogleTest as a subdirectory
 add_subdirectory("external/googletest")
 

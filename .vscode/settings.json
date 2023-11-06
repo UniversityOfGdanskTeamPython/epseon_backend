@@ -92,5 +92,9 @@
         }
     },
     "cmake.cmakePath": "cmake",
-    "python.analysis.exclude": ["external/", "site/", "docs/macros/"]
+    "python.analysis.exclude": ["external/", "site/", "docs/macros/"],
+    "clangd.arguments": [
+        "--compile-commands-dir=./build/",
+        "--query-driver=/usr/bin/g++"
+    ]
 }
