@@ -6,21 +6,22 @@
 
 namespace epseon {
     namespace gpu {
+        namespace cpp {
+            class LibGPUTest : public ::testing::Test {};
 
-        class LibGPUTest : public ::testing::Test {};
+            TEST_F(LibGPUTest, TestVulkanApplicationConstruction) {
+                auto va_opt = VulkanApplication::create();
+                if (va_opt.has_value()) {
+                    auto va         = va_opt->get();
+                    auto apiVersion = va->getVulkanAPIVersion();
 
-        TEST_F(LibGPUTest, TestVulkanApplicationConstruction) {
-            auto va_opt = VulkanApplication::create();
-            if (va_opt.has_value()) {
-                auto va = va_opt->get();
+                    const std::regex versionRegex{"[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+"};
+                    std::smatch      baseMatch;
 
-                auto             apiVersion = va->getVulkanAPIVersion();
-                const std::regex versionRegex{"[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+"};
-                std::smatch      baseMatch;
-
-                ASSERT_TRUE(std::regex_match(apiVersion, baseMatch, versionRegex));
+                    ASSERT_TRUE(std::regex_match(apiVersion, baseMatch, versionRegex));
+                }
             }
-        }
 
-    } // namespace gpu
+        } // namespace cpp
+    }     // namespace gpu
 } // namespace epseon
