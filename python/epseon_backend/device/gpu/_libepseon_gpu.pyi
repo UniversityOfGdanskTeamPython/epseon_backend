@@ -53,7 +53,7 @@ class PhysicalDeviceProperties(Protocol):
         "other",
     ]
     device_name: str
-    pipeline_cache_uuid: str
+    pipeline_cache_uuid: list[int]
     limits: PhysicalDeviceLimits
     sparse_properties: str
 
