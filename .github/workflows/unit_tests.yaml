@@ -107,6 +107,7 @@ jobs:
                   ls -la "$(pwd)/shiftshader/"
                   ls -la "$(pwd)/"
                   poetry run poe run-unit-tests
+                  cat ./log/test/*
 
             - name: Upload built wheel and sdist
               uses: actions/upload-artifact@v3

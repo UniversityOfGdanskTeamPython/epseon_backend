@@ -42,6 +42,18 @@ class Builder:
             "checkout",
             "v1.12.0",
         )
+        self.git(
+            "-C",
+            f"{self.repo_path.as_posix()}/external/pybind11",
+            "fetch",
+            "--tags",
+        )
+        self.git(
+            "-C",
+            f"{self.repo_path.as_posix()}/external/pybind11",
+            "checkout",
+            "v2.11.1",
+        )
 
     def git(self, *arg: str) -> None:
         """Run git command."""

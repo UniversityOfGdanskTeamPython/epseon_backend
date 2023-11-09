@@ -11,7 +11,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 enable_testing()
 
-find_package(Python3 REQUIRED COMPONENTS Development)
+find_package(Python3 REQUIRED COMPONENTS Development Interpreter)
+
 find_package(Vulkan REQUIRED)
 message("----------------------------------- Vulkan ------------------------------------")
 message("Vulkan_FOUND                           = '${Vulkan_FOUND}'")
@@ -50,6 +51,7 @@ set(epseon_gpu_INCLUDE
     PUBLIC "${PROJECT_SOURCE_DIR}/include"
     PRIVATE "${PROJECT_SOURCE_DIR}/../include"
     PRIVATE "${REPOSITORY_ROOT}/external/spdlog/include"
+    PRIVATE "${REPOSITORY_ROOT}/external/pybind11/include"
     PRIVATE "${Python3_INCLUDE_DIRS}"
     PRIVATE "${Vulkan_INCLUDE_DIRS}"
 )

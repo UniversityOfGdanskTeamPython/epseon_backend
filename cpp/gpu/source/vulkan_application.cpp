@@ -1,6 +1,10 @@
 
 #include "epseon_gpu/vulkan_application.hpp"
+#include "epseon_gpu/common.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
+#include "spdlog/spdlog.h"
+#include <iostream>
+#include <string>
 
 namespace epseon {
     namespace gpu {
@@ -23,28 +27,25 @@ namespace epseon {
 
             std::optional<std::unique_ptr<VulkanApplication>>
             VulkanApplication::create(uint32_t version) {
-                auto logger = spdlog::basic_logger_mt(
-                    "libepseon_gpu", "./log/libepseon_gpu/log.txt"
-                );
+                auto logger = spdlog::get("_libepseon_gpu");
+                if (!logger) {
+                    logger = spdlog::basic_logger_mt(
+                        "_libepseon_gpu", "./log/libepseon_gpu/log.txt"
+                    );
+                }
 
                 auto context = std::make_unique<vk::raii::Context>();
 
                 uint32_t apiVersion = context->enumerateInstanceVersion();
                 if (apiVersion < VK_API_VERSION_1_3) {
                     logger->warn(
-                        "Unsupported Vulkan version: {}.{}.{}.{}",
-                        vk::apiVersionVariant(apiVersion),
-                        vk::apiVersionMajor(apiVersion),
-                        vk::apiVersionMinor(apiVersion),
-                        vk::apiVersionPatch(apiVersion)
+                        "Unsupported Vulkan version: {}",
+                        common::vulkan_version_to_string(apiVersion)
                     );
                 } else {
                     logger->info(
-                        "Discovered Vulkan version: {}.{}.{}.{}",
-                        vk::apiVersionVariant(apiVersion),
-                        vk::apiVersionMajor(apiVersion),
-                        vk::apiVersionMinor(apiVersion),
-                        vk::apiVersionPatch(apiVersion)
+                        "Discovered Vulkan version: {}",
+                        common::vulkan_version_to_string(apiVersion)
                     );
                 }
 
@@ -81,14 +82,7 @@ namespace epseon {
 
             std::string VulkanApplication::getVulkanAPIVersion() {
                 auto apiVersion = this->context->enumerateInstanceVersion();
-
-                std::stringstream ss;
-                ss << vk::apiVersionVariant(apiVersion) << "."
-                   << vk::apiVersionMajor(apiVersion) << "."
-                   << vk::apiVersionMinor(apiVersion) << "."
-                   << vk::apiVersionPatch(apiVersion);
-
-                return ss.str();
+                return common::vulkan_version_to_string(apiVersion);
             }
 
             std::vector<PhysicalDeviceInfo>
@@ -97,11 +91,10 @@ namespace epseon {
 
                 for (auto deviceInfo : this->instance->enumeratePhysicalDevices()) {
                     auto deviceProperties = deviceInfo.getProperties();
-
                     devices.push_back({deviceProperties});
                 }
 
-                return {};
+                return devices;
             }
         } // namespace cpp
     }     // namespace gpu

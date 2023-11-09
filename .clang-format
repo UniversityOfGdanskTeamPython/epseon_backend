@@ -36,3 +36,4 @@ MaxEmptyLinesToKeep: 1
 QualifierAlignment: Left
 SeparateDefinitionBlocks: Always
 UseTab: Never
+IndentCaseLabels: true
