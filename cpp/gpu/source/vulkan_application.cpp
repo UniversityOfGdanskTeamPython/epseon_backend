@@ -3,16 +3,13 @@
 #include "epseon_gpu/common.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/spdlog.h"
+#include "vulkan/vulkan_structs.hpp"
 #include <iostream>
 #include <string>
 
 namespace epseon {
     namespace gpu {
         namespace cpp {
-            PhysicalDeviceInfo::PhysicalDeviceInfo(
-                vk::PhysicalDeviceProperties deviceProperties
-            ) :
-                deviceProperties(deviceProperties) {}
 
             VulkanApplication::VulkanApplication(
                 std::shared_ptr<spdlog::logger>      logger,
@@ -25,7 +22,7 @@ namespace epseon {
                 application_info(std::move(application_info)),
                 instance(std::move(instance)) {}
 
-            std::optional<std::unique_ptr<VulkanApplication>>
+            std::unique_ptr<VulkanApplication>
             VulkanApplication::create(uint32_t version) {
                 auto logger = spdlog::get("_libepseon_gpu");
                 if (!logger) {
@@ -72,12 +69,12 @@ namespace epseon {
                     std::move(context->createInstance(instanceCreateInfo))
                 );
 
-                return {std::unique_ptr<VulkanApplication>(new VulkanApplication{
+                return std::unique_ptr<VulkanApplication>(new VulkanApplication{
                     logger,
                     std::move(context),
                     std::move(applicationInfo),
                     std::move(instance)
-                })};
+                });
             }
 
             std::string VulkanApplication::getVulkanAPIVersion() {
@@ -91,7 +88,8 @@ namespace epseon {
 
                 for (auto deviceInfo : this->instance->enumeratePhysicalDevices()) {
                     auto deviceProperties = deviceInfo.getProperties();
-                    devices.push_back({deviceProperties});
+                    auto memoryProperties = deviceInfo.getMemoryProperties();
+                    devices.push_back({deviceProperties, memoryProperties});
                 }
 
                 return devices;

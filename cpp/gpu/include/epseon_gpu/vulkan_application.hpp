@@ -14,12 +14,10 @@
 namespace epseon {
     namespace gpu {
         namespace cpp {
-            class PhysicalDeviceInfo {
+            struct PhysicalDeviceInfo {
               public:
-                vk::PhysicalDeviceProperties deviceProperties;
-
-              public:
-                PhysicalDeviceInfo(vk::PhysicalDeviceProperties deviceProperties);
+                vk::PhysicalDeviceProperties       deviceProperties;
+                vk::PhysicalDeviceMemoryProperties memoryProperties;
             };
 
             class VulkanApplication {
@@ -38,10 +36,8 @@ namespace epseon {
                 );
 
               public:
-                static std::optional<std::unique_ptr<VulkanApplication>>
+                static std::unique_ptr<VulkanApplication>
                 create(uint32_t version = VK_MAKE_API_VERSION(0, 0, 1, 0));
-                friend std::optional<std::unique_ptr<VulkanApplication>> create(uint32_t
-                );
 
               public:
                 std::string                     getVulkanAPIVersion();
