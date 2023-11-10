@@ -45,19 +45,24 @@ If they fail or change files, you will have to re-add changes and commit again.
 
 ## Build from source
 
-To build Epseon Backend from source make sure you have `poetry` environment activated
-with:
+To build Epseon Backend you will need some dependencies which have to be installed
+manually:
 
-```
-poetry shell
-```
+-   `Vulkan SDK`, version `1.3.268` is recommended, you can find it
+    [here](https://vulkan.lunarg.com/sdk/home).
+-   `Python 3` interpreter, version 3.8 - 3.12, can be downloaded from
+    [here](https://www.python.org/downloads/).
+-   `poetry`, version `1.6.1` is known to work correctly, which can be obtained with
+    `pip install poetry`.
 
-With environment active it should be possible to build wheel and source distribution
-with:
+After obtaining all the dependencies you should be able to run following command:
 
 ```
 poetry build
 ```
+
+It should create `dist/` directory with `.whl` file which can be installed directly with
+`pip`.
 
 ## Build documentation
 
@@ -76,3 +81,36 @@ mkdocs build
 
 **Important** this is not how CI builds documentation, do not use this approach to
 upload documentation to GitHub pages.
+
+## Build Python from source on Linux
+
+When building Python interpreter on Linux to be used for extension development,
+`libpython3.x` must be compiled with `-fPIC` to generate code which can be embedded into
+shared library. To do that configure Python build with following command:
+
+```bash
+CFLAGS=-fPIC ./configure --enable-shared=no --enable-optimizations
+```
+
+then you can follow up same as in any other build:
+
+```bash
+make
+sudo make altinstall
+```
+
+Altinstall above causes Python to be installed as a secondary Python version. If it is
+only Python version you have on your machine, use `sudo make install` instead.
+
+## Inspecting shared library symbol tables
+
+Inspecting shared library symbol tables can be done with GNU `nm` tools. To un-mangle
+symbol names you can use GNU `c++filt` from `binutils` apt package.
+
+```
+nm python/epseon_backend/device/gpu/_libepseon_gpu.so | c++filt
+```
+
+```
+nm python/epseon_backend/device/cpu/_libepseon_cpu.so | c++filt
+```

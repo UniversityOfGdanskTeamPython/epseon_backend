@@ -85,10 +85,16 @@
     "cSpell.words": ["Argmaster", "mateuszzalewski", "Szpy"],
     "cSpell.customDictionaries": {
         "custom-dictionary-workspace": {
-            "name": "custom-dictionary-workspace",
-            "path": "${workspaceFolder:epseon_backend}/.cspell/custom-dictionary-workspace.txt",
+            "name": "workspace-dictionary",
+            "path": "${workspaceFolder:epseon_backend}/.vscode/workspace-dictionary.txt",
             "addWords": true,
             "scope": "workspace"
         }
-    }
+    },
+    "cmake.cmakePath": "cmake",
+    "python.analysis.exclude": ["external/", "site/", "docs/macros/"],
+    "clangd.arguments": [
+        "--compile-commands-dir=./build/",
+        "--query-driver=/usr/bin/g++"
+    ]
 }

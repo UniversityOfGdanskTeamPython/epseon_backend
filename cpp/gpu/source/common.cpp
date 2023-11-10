@@ -1,0 +1,18 @@
+#include "epseon_gpu/common.hpp"
+#include "vulkan/vulkan_raii.hpp"
+#include <sstream>
+
+namespace epseon {
+    namespace gpu {
+        namespace common {
+            std::string vulkan_version_to_string(uint32_t version) {
+                std::stringstream ss;
+                ss << vk::apiVersionVariant(version) << "."
+                   << vk::apiVersionMajor(version) << "."
+                   << vk::apiVersionMinor(version) << "."
+                   << vk::apiVersionPatch(version);
+                return ss.str();
+            }
+        } // namespace common
+    }     // namespace gpu
+} // namespace epseon

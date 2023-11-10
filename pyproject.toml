@@ -39,6 +39,21 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Visualization",
     "Topic :: Scientific/Engineering :: Physics",
 ]
+include = [
+    { path = "external", format = "sdist" },
+    { path = "docs", format = "sdist" },
+    { path = "cpp", format = "sdist" },
+    { path = "test", format = "sdist" },
+    { path = "mkdocs.yaml", format = "sdist" },
+    { path = "python/epseon_backend/device/cpu/_libepseon_cpu.*", format = "wheel" },
+    { path = "python/epseon_backend/device/gpu/_libepseon_gpu.*", format = "wheel" },
+    { path = "python/epseon_backend/shaders/*.glsl", format = [
+        "sdist",
+        "wheel",
+    ] },
+]
+packages = [{ include = "epseon_backend", from = "python" }]
+build = "build.py"
 
 [tool.poetry.dependencies]
 python = "^3.8,<3.13"
@@ -60,6 +75,7 @@ pre-commit = "^3.5.0"
 pytest-xdist = "^3.3.1"
 pytest-cov = "^4.1.0"
 tzlocal = "^5.2"
+cmake = "^3.27.7"
 
 [tool.poetry.group.docs]
 optional = true
@@ -74,9 +90,12 @@ mkdocs-gen-files = "^0.5.0"
 pygments = "^2.15.1"
 
 [build-system]
-requires = ["poetry-core"]
+requires = [
+    "poetry-core>=1.8.1,<1.9",
+    "cmake>=3.27,<3.28",
+    "setuptools>=68.2,<69.0",
+]
 build-backend = "poetry.core.masonry.api"
-
 
 [tool.poe.tasks]
 # -------------------------------------------------------------------------------------
@@ -90,14 +109,25 @@ install-hooks = [
 # hook triggers
 run-code-quality-checks = [{ cmd = "pre-commit run --all-files -v" }]
 # -------------------------------------------------------------------------------------
-run-unit-tests = [
-    { cmd = "pytest --log-level=DEBUG -s -n logical --cov=epseon_backend --cov-report=term-missing:skip-covered" },
+cpp-build-all = [
+    { cmd = "python -c 'import cmake;cmake.cmake()' -S . -B build" },
+    { cmd = "python -c 'import cmake;cmake.cmake()' --build build --target all" },
 ]
-run-type-checks = [{ cmd = "mypy src/epseon_backend test/ scripts/" }]
+run-unit-tests = [
+    { cmd = "python -c 'import cmake;cmake.ctest()' --test-dir build --output-on-failure" },
+    { cmd = "pytest --log-level=DEBUG -s -n logical --cov=epseon_backend --cov=python/test" },
+]
+run-type-checks = [{ cmd = "mypy python/epseon_backend python/test/ scripts/" }]
+
+
+[tool.pytest.ini_options]
+minversion = "7.2.0"
+norecursedirs = ["external"]
+testpaths = ["./python/test/"]
 
 [tool.isort]
 profile = "black"
-src_paths = ["src", "test"]
+src_paths = ["python/epseon_backend", "python/test"]
 
 [tool.black]
 line-length = 88
@@ -115,13 +145,14 @@ ignore = [
     "D213",   # Makes sure that multi-line docstring summary start at the second line
     "UP007",  # Use X | Y for type annotations
     "UP006",  # Use {to} instead of {from} for type annotation
-    "TCH001", # Move application import {} into a type-checking block
     "D105",   # Adding docstrings in all magic methods doesn't make sense, as usually they are just boilerplate to support operators.
     "FIX002", # Line contains TODO, consider resolving the issue
+    "PYI044", # Checks for the presence of the from __future__ import annotations import statement in stub files. In our case it's easier to ignore it than add exceptions to auto-adding this import.
+    "PYI021", # Checks for the presence of docstrings in stub files. - Otherwise docstrings are not visible in VSCode GUI, so they have to be duplicated between extension libraries and stub files.
 ]
 show-fixes = true
 target-version = "py38"
-src = ["src", "test"]
+src = ["python/epseon_backend", "python/test"]
 
 [tool.ruff.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
