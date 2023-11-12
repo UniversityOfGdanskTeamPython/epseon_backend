@@ -8,27 +8,6 @@ class PhysicalDeviceSparseProperties(Protocol):
 class PhysicalDeviceLimits(Protocol):
     """Physical device limits - mostly max counts of different resources."""
 
-    max_uniform_buffer_range: int
-    max_storage_buffer_range: int
-    max_push_constants_size: int
-    max_memory_allocation_count: int
-    sparse_address_space_size: int
-    max_bound_descriptor_sets: int
-    max_per_stage_descriptor_samplers: int
-    max_per_stage_descriptor_uniform_buffers: int
-    max_per_stage_descriptor_storage_buffers: int
-    max_per_stage_descriptor_sampled_images: int
-    max_per_stage_descriptor_storage_images: int
-    max_per_stage_descriptor_input_attachments: int
-    max_per_stage_resources: int
-    max_descriptor_set_samplers: int
-    max_descriptor_set_uniform_buffers: int
-    max_descriptor_set_uniform_buffers_dynamic: int
-    max_descriptor_set_storage_buffers: int
-    max_descriptor_set_storage_buffers_dynamic: int
-    max_descriptor_set_sampled_images: int
-    max_descriptor_set_storage_images: int
-    max_descriptor_set_input_attachments: int
     # In the future -> max_uniform_buffer_range: int
     # In the future -> max_storage_buffer_range: int
     # In the future -> max_push_constants_size: int
@@ -99,6 +78,9 @@ class PhysicalDeviceInfo(Protocol):
     device_properties: PhysicalDeviceProperties
     memory_properties: PhysicalDeviceMemoryProperties
 
+class ComputeDeviceInterface:
+    """Interface to particular Vulkan device."""
+
 class EpseonComputeContext(Protocol):
     """Interface to computations on GPU with Vulkan."""
 
@@ -109,3 +91,5 @@ class EpseonComputeContext(Protocol):
         """Get Vulkan API version."""
     def get_physical_device_info(self) -> Iterable[PhysicalDeviceInfo]:
         """Get information about available physical devices."""
+    def get_device_interface(self, __device_id: int) -> ComputeDeviceInterface:
+        """Get interface for running algorithms on Vulkan devices."""

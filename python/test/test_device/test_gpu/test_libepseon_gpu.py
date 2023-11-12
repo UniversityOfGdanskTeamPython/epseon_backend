@@ -116,3 +116,13 @@ class TestEpseonComputeContext:
                     "  - type heap index = %s",
                     mem_type.heap_index,
                 )
+
+    def test_get_device_interface(self) -> None:
+        """Check if getting information about available physical devices is possible."""
+        from epseon_backend.device.gpu._libepseon_gpu import EpseonComputeContext
+
+        ctx = EpseonComputeContext.create()
+
+        device_info = next(iter(ctx.get_physical_device_info()))
+        interface = ctx.get_device_interface(device_info.device_properties.device_id)
+        assert id(interface)

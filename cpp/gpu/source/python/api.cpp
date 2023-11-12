@@ -1,7 +1,7 @@
 #include "epseon_gpu/python/api.hpp"
 
 #include "epseon_gpu/common.hpp"
-#include "epseon_gpu/vulkan_application.hpp"
+#include "epseon_gpu/compute_context.hpp"
 #include "pybind11/detail/common.h"
 #include "vulkan/vulkan.hpp"
 #include "vulkan/vulkan_enums.hpp"
@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <memory>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <stdexcept>
@@ -23,16 +24,20 @@ namespace epseon {
     namespace gpu {
         namespace python {
 
-            EpseonComputeContext::EpseonComputeContext(
-                std::unique_ptr<cpp::VulkanApplication> application
+            ComputeDeviceInterface::ComputeDeviceInterface(
+                std::shared_ptr<cpp::ComputeDeviceInterface> device_
             ) :
-                application(std::move(application)) {}
+                device(device_) {}
 
-            std::unique_ptr<EpseonComputeContext> EpseonComputeContext::create() {
-                auto application = cpp::VulkanApplication::create();
+            EpseonComputeContext::EpseonComputeContext(
+                std::shared_ptr<cpp::ComputeContext> application_
+            ) :
+                application(application_) {}
+
+            EpseonComputeContext EpseonComputeContext::create() {
+                auto application = cpp::ComputeContext::create();
                 if (application) {
-                    return std::make_unique<EpseonComputeContext>(std::move(application)
-                    );
+                    return EpseonComputeContext{application};
                 } else {
                     throw std::runtime_error("Failed to create EpseonComputeContext.");
                 }
@@ -45,6 +50,11 @@ namespace epseon {
             std::vector<cpp::PhysicalDeviceInfo>
             EpseonComputeContext::get_physical_device_info() {
                 return application->getPhysicalDevicesInfo();
+            }
+
+            ComputeDeviceInterface
+            EpseonComputeContext::get_device_interface(uint32_t device_id) {
+                return {application->getDeviceInterface(device_id)};
             }
 
             PYBIND11_MODULE(_libepseon_gpu, m) {
@@ -274,12 +284,14 @@ namespace epseon {
                     .doc() =
                     "Container for physical device info retrieved from Vulkan API.";
 
+                py::class_<ComputeDeviceInterface>(m, "ComputeDeviceInterface").doc() =
+                    "Interface to particular Vulkan device.";
+
                 py::class_<EpseonComputeContext>(m, "EpseonComputeContext")
                     .def(
                         "create",
                         &EpseonComputeContext::create,
-                        "Create instance of VulkanContext object.",
-                        py::return_value_policy::move
+                        "Create instance of VulkanContext object."
                     )
                     .def(
                         "get_vulkan_version",
@@ -290,6 +302,11 @@ namespace epseon {
                         "get_physical_device_info",
                         &EpseonComputeContext::get_physical_device_info,
                         "Get information about available physical devices."
+                    )
+                    .def(
+                        "get_device_interface",
+                        &EpseonComputeContext::get_device_interface,
+                        "Get interface for running algorithms on Vulkan devices."
                     )
                     .doc() = "Vulkan interface handle.";
             }

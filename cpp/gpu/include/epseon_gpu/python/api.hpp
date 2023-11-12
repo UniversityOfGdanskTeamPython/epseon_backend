@@ -1,7 +1,8 @@
 #pragma once
 
 #include "epseon/libepseon.hpp"
-#include "epseon_gpu/vulkan_application.hpp"
+#include "epseon_gpu/compute_context.hpp"
+#include "epseon_gpu/device_interface.hpp"
 #include <memory>
 #include <optional>
 #include <string>
@@ -11,15 +12,22 @@ namespace epseon {
     namespace gpu {
         namespace python {
 
+            class ComputeDeviceInterface {
+              public:
+                std::shared_ptr<cpp::ComputeDeviceInterface> device;
+
+              public:
+                ComputeDeviceInterface(std::shared_ptr<cpp::ComputeDeviceInterface>);
+            };
+
             class EpseonComputeContext {
               public:
-                std::unique_ptr<cpp::VulkanApplication> application = {};
+                std::shared_ptr<cpp::ComputeContext> application = {};
 
               public:
-                EpseonComputeContext(std::unique_ptr<cpp::VulkanApplication> application
-                );
+                EpseonComputeContext(std::shared_ptr<cpp::ComputeContext>);
 
-                static std::unique_ptr<EpseonComputeContext> create();
+                static EpseonComputeContext create();
 
                 /* Python API function - returns Vulkan version extracted from
                  * VkInstance. */
@@ -27,6 +35,9 @@ namespace epseon {
                 /* Python API function - Get information about available physical
                  * devices. */
                 std::vector<cpp::PhysicalDeviceInfo> get_physical_device_info();
+                /* Python API function - Get interface for running algorithms on Vulkan
+                 * devices. */
+                ComputeDeviceInterface               get_device_interface(uint32_t);
             };
         } // namespace python
     }     // namespace gpu

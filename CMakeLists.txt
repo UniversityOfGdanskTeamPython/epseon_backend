@@ -42,6 +42,9 @@ message("Python3_SABI_LIBRARIES                 = '${Python3_SABI_LIBRARIES}'")
 message("Python3_RUNTIME_SABI_LIBRARY_DIRS      = '${Python3_RUNTIME_SABI_LIBRARY_DIRS}'")
 message("------------------------------------- end -------------------------------------")
 
+# fmt} is an open-source formatting library providing a fast and safe alternative to C stdio and C++ iostreams.
+add_subdirectory("external/fmt")
+
 # Add pybind11, C++ wrapper around Python C API.
 add_subdirectory("external/pybind11")
 
@@ -50,6 +53,9 @@ add_subdirectory("external/spdlog")
 
 # Add GoogleTest as a subdirectory.
 add_subdirectory("external/googletest")
+
+# Easy to integrate Vulkan memory allocation library.
+add_subdirectory("external/vma")
 
 # Enable testing
 enable_testing()

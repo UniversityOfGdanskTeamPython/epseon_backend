@@ -10,6 +10,15 @@ from pathlib import Path
 class Builder:
     """Class responsible for building epseon_backend binaries."""
 
+    DEPS: tuple[tuple[str, str], ...] = (
+        ("googletest", "release-1.12.1"),
+        ("spdlog", "v1.12.0"),
+        ("pybind11", "v2.11.1"),
+        ("fmt", "10.1.1"),
+        ("vma", "v3.0.1"),  # vma and vma_hpp have to be the same version.
+        ("vma_hpp", "v3.0.1"),
+    )
+
     def __init__(self) -> None:
         """Initialize builder object."""
         self.repo_path = Path(__file__).parent
@@ -18,42 +27,19 @@ class Builder:
     def prepare_submodules(self) -> None:
         """Prepare dependency submodules."""
         self.git("submodule", "init")
-        self.git(
-            "-C",
-            f"{self.repo_path.as_posix()}/external/googletest",
-            "fetch",
-            "--tags",
-        )
-        self.git(
-            "-C",
-            f"{self.repo_path.as_posix()}/external/googletest",
-            "checkout",
-            "release-1.12.1",
-        )
-        self.git(
-            "-C",
-            f"{self.repo_path.as_posix()}/external/spdlog",
-            "fetch",
-            "--tags",
-        )
-        self.git(
-            "-C",
-            f"{self.repo_path.as_posix()}/external/spdlog",
-            "checkout",
-            "v1.12.0",
-        )
-        self.git(
-            "-C",
-            f"{self.repo_path.as_posix()}/external/pybind11",
-            "fetch",
-            "--tags",
-        )
-        self.git(
-            "-C",
-            f"{self.repo_path.as_posix()}/external/pybind11",
-            "checkout",
-            "v2.11.1",
-        )
+        for dependency_name, dependency_tag in self.DEPS:
+            self.git(
+                "-C",
+                f"{self.repo_path.as_posix()}/external/{dependency_name}",
+                "fetch",
+                "--tags",
+            )
+            self.git(
+                "-C",
+                f"{self.repo_path.as_posix()}/external/{dependency_name}",
+                "checkout",
+                dependency_tag,
+            )
 
     def git(self, *arg: str) -> None:
         """Run git command."""
