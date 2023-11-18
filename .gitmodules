@@ -8,3 +8,12 @@
 	path = external/pybind11
 	url = https://github.com/pybind/pybind11
 	branch = stable
+[submodule "external/fmt"]
+	path = external/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "external/vma"]
+	path = external/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/
+[submodule "external/vma_hpp"]
+	path = external/vma_hpp
+	url = https://github.com/YaaZ/VulkanMemoryAllocator-Hpp
