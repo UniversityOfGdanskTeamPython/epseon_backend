@@ -2,10 +2,16 @@
 
 #include "epseon_gpu/common.hpp"
 #include "epseon_gpu/compute_context.hpp"
+#include "epseon_gpu/enums.hpp"
+#include "epseon_gpu/task_configurator.hpp"
+#include "fmt/format.h"
 #include "pybind11/detail/common.h"
+#include "pybind11/pytypes.h"
+#include "pybind11/stl.h"
 #include "vulkan/vulkan.hpp"
 #include "vulkan/vulkan_enums.hpp"
 #include "vulkan/vulkan_structs.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +22,7 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <variant>
 #include <vector>
 
 namespace py = pybind11;
@@ -24,10 +31,252 @@ namespace epseon {
     namespace gpu {
         namespace python {
 
+            TaskConfigurator::TaskConfigurator(
+                cpp::PrecisionType                            precision_,
+                std::shared_ptr<cpp::TaskConfiguratorVariant> configurator_
+            ) :
+                precision(precision_),
+                configurator(configurator_) {}
+
+            // Copy constructor
+            TaskConfigurator::TaskConfigurator(const TaskConfigurator& other) :
+                precision(other.precision),
+                configurator(other.configurator) {}
+
+            // Move constructor
+            TaskConfigurator::TaskConfigurator(TaskConfigurator&& other) noexcept :
+                precision(std::move(other.precision)),
+                configurator(std::move(other.configurator)) {}
+
+            // Copy assignment operator
+            TaskConfigurator& TaskConfigurator::operator=(const TaskConfigurator& other
+            ) {
+                if (this != &other) {
+                    precision    = other.precision;
+                    configurator = other.configurator;
+                }
+                return *this;
+            }
+
+            // Move assignment operator
+            TaskConfigurator& TaskConfigurator::operator=(TaskConfigurator&& other
+            ) noexcept {
+                if (this != &other) {
+                    precision    = std::move(other.precision);
+                    configurator = std::move(other.configurator);
+                }
+                return *this;
+            }
+
+            TaskConfigurator& TaskConfigurator::set_hardware_config(
+                uint32_t potential_buffer_size,
+                uint32_t group_size,
+                uint32_t dispatch_count,
+                uint32_t allocation_block_size
+            ) {
+                auto helper = [potential_buffer_size,
+                               group_size,
+                               dispatch_count,
+                               allocation_block_size,
+                               this]<typename T>(T val_) {
+                    auto& cfg =
+                        std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
+                    cfg.setHardwareConfig(std::make_unique<cpp::HardwareConfig<T>>(
+                        potential_buffer_size,
+                        group_size,
+                        dispatch_count,
+                        allocation_block_size
+                    ));
+                };
+
+                PrecisionTypeAssertValueCount(2);
+                switch (this->precision) {
+                    case cpp::PrecisionType::Float32: {
+                        helper(float(1.0));
+                        break;
+                    }
+                    case cpp::PrecisionType::Float64: {
+                        helper(double(1.0));
+                        break;
+                    }
+                    default:
+                        throw py::value_error(fmt::format(
+                            "Invalid PrecisionType value {}", toString(this->precision)
+                        ));
+                }
+                return *this;
+            }
+
+            TaskConfigurator& TaskConfigurator::set_morse_potential(
+                double min_atom_distance_au,
+                double max_atom_distance_au,
+                double binding_energy_ev,
+                double well_width
+            ) {
+                auto helper = [min_atom_distance_au,
+                               max_atom_distance_au,
+                               binding_energy_ev,
+                               well_width,
+                               this]<typename T>(T val_) {
+                    auto& cfg =
+                        std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
+                    cfg.setPotentialSource(
+                        std::make_unique<cpp::MorsePotentialGenerator<T>>(
+                            static_cast<T>(min_atom_distance_au),
+                            static_cast<T>(max_atom_distance_au),
+                            static_cast<T>(binding_energy_ev),
+                            static_cast<T>(well_width)
+                        )
+                    );
+                };
+
+                PrecisionTypeAssertValueCount(2);
+                switch (this->precision) {
+                    case cpp::PrecisionType::Float32: {
+                        helper(float(1.0));
+                        break;
+                    }
+                    case cpp::PrecisionType::Float64: {
+                        helper(double(1.0));
+                        break;
+                    }
+                    default:
+                        throw py::value_error(fmt::format(
+                            "Invalid PrecisionType value {}", toString(this->precision)
+                        ));
+                }
+                return *this;
+            }
+
+            TaskConfigurator& TaskConfigurator::set_vibwa_algorithm(
+                double   integration_step,
+                double   min_distance_to_asymptote,
+                uint32_t min_level,
+                uint32_t max_level
+            ) {
+                auto helper = [integration_step,
+                               min_distance_to_asymptote,
+                               min_level,
+                               max_level,
+                               this]<typename T>(T val_) {
+                    auto& cfg =
+                        std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
+                    cfg.setAlgorithmConfig(
+                        std::make_unique<cpp::VibwaAlgorithmConfig<T>>(
+                            static_cast<T>(integration_step),
+                            static_cast<T>(min_distance_to_asymptote),
+                            min_level,
+                            max_level
+                        )
+                    );
+                };
+
+                PrecisionTypeAssertValueCount(2);
+                switch (this->precision) {
+                    case cpp::PrecisionType::Float32: {
+                        helper(float(1.0));
+                        break;
+                    }
+                    case cpp::PrecisionType::Float64: {
+                        helper(double(1.0));
+                        break;
+                    }
+                    default:
+                        throw py::value_error(fmt::format(
+                            "Invalid PrecisionType value {}", toString(this->precision)
+                        ));
+                }
+                return *this;
+            }
+
+            bool TaskConfigurator::is_configured() const {
+                auto helper = [this]<typename T>(T val_) {
+                    auto& cfg =
+                        std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
+                    return cfg.isConfigured();
+                };
+
+                PrecisionTypeAssertValueCount(2);
+                switch (this->precision) {
+                    case cpp::PrecisionType::Float32: {
+                        return helper(float(1.0));
+                    }
+                    case cpp::PrecisionType::Float64: {
+                        return helper(double(1.0));
+                    }
+                    default:
+                        throw py::value_error(fmt::format(
+                            "Invalid PrecisionType value {}", toString(this->precision)
+                        ));
+                }
+            }
+
             ComputeDeviceInterface::ComputeDeviceInterface(
                 std::shared_ptr<cpp::ComputeDeviceInterface> device_
             ) :
                 device(device_) {}
+
+            TaskConfigurator
+            ComputeDeviceInterface::get_task_configurator(const std::string precision) {
+                auto precision_enum_value = [&precision]() {
+                    try {
+                        return cpp::toPrecisionType(precision);
+                    } catch (cpp::InvalidPrecisionTypeString e) {
+                        throw py::value_error(e.what());
+                    }
+                }();
+
+                PrecisionTypeAssertValueCount(2);
+                switch (precision_enum_value) {
+                    case cpp::PrecisionType::Float32:
+                        return TaskConfigurator{
+                            precision_enum_value,
+                            device->getTaskConfigurator(precision_enum_value)
+                        };
+                    case cpp::PrecisionType::Float64:
+                        return TaskConfigurator{
+                            precision_enum_value,
+                            device->getTaskConfigurator(precision_enum_value)
+                        };
+                    default:
+                        throw std::runtime_error("Unreachable.");
+                }
+                assert(false);
+            }
+
+            TaskHandleVariant
+            ComputeDeviceInterface::submit_task(const TaskConfigurator& task_config) {
+                if (!task_config.is_configured()) {
+                    throw std::runtime_error("TaskConfigurator submitted for execution "
+                                             "before fully configured.");
+                }
+                auto helper = [task_config,
+                               this]<typename T>(T val_) -> TaskHandleVariant {
+                    auto& config =
+                        std::get<cpp::TaskConfigurator<T>>(*(task_config.configurator));
+                    auto new_shared_config_clone =
+                        std::make_shared<cpp::TaskConfigurator<T>>(config);
+                    auto task_handle =
+                        this->device->submitTask(new_shared_config_clone);
+
+                    return {task_handle};
+                };
+
+                PrecisionTypeAssertValueCount(2);
+                switch (task_config.precision) {
+                    case cpp::PrecisionType::Float32: {
+                        return helper(float(1.0));
+                    }
+                    case cpp::PrecisionType::Float64: {
+                        return helper(double(1.0));
+                    }
+                    default:
+                        throw py::value_error(fmt::format(
+                            "Invalid PrecisionType value {}",
+                            toString(task_config.precision)
+                        ));
+                }
+            }
 
             EpseonComputeContext::EpseonComputeContext(
                 std::shared_ptr<cpp::ComputeContext> application_
@@ -67,7 +316,8 @@ namespace epseon {
                     .doc() =
                     "Wrapper around vk::PhysicalDeviceSparseProperties object.";
 
-                /* Physical device limits - mostly max counts of different resources. */
+                /* Python API -  Wrapper around container class for physical device
+                 * limits - mostly max counts of different resources. */
                 py::class_<vk::PhysicalDeviceLimits>(m, "PhysicalDeviceLimits")
                     .def_property_readonly(
                         "max_compute_shared_memory_size",
@@ -101,7 +351,8 @@ namespace epseon {
                     .doc() = "Physical device limits - mostly max counts of different "
                              "resources.";
 
-                /* Properties of physical device retrieved from Vulkan API. */
+                /* Python API - Wrapper around container class for properties of
+                 * physical device retrieved from Vulkan API. */
                 py::class_<vk::PhysicalDeviceProperties>(m, "PhysicalDeviceProperties")
                     .def_property_readonly(
                         "api_version",
@@ -175,6 +426,7 @@ namespace epseon {
                     )
                     .doc() = "Properties of physical device retrieved from Vulkan API.";
 
+                /* Python API - Wrapper around container class for memory heap info. */
                 py::class_<vk::MemoryHeap>(m, "MemoryHeap")
                     .def_property_readonly(
                         "size",
@@ -197,7 +449,7 @@ namespace epseon {
                     )
                     .doc() = "Wrapper around vk::MemoryHeap object.";
 
-                /* Properties of physical device memory retrieved from Vulkan API. */
+                /* Python API - Wrapper around container class for memory type info. */
                 py::class_<vk::MemoryType>(m, "MemoryType")
                     .def_property_readonly(
                         "heap_index",
@@ -241,7 +493,8 @@ namespace epseon {
                     )
                     .doc() = "Wrapper around vk::MemoryHeap object.";
 
-                /* Properties of physical device memory retrieved from Vulkan API. */
+                /* Python API - Wrapper around container class for properties of
+                 * physical device memory retrieved from Vulkan API. */
                 py::class_<vk::PhysicalDeviceMemoryProperties>(
                     m, "PhysicalDeviceMemoryProperties"
                 )
@@ -268,6 +521,7 @@ namespace epseon {
                     .doc() =
                     "Wrapper around vk::PhysicalDeviceMemoryProperties object.";
 
+                /* Python API - Wrapper class around PhysicalDeviceInfo class. */
                 py::class_<cpp::PhysicalDeviceInfo>(m, "PhysicalDeviceInfo")
                     .def_property_readonly(
                         "device_properties",
@@ -284,9 +538,66 @@ namespace epseon {
                     .doc() =
                     "Container for physical device info retrieved from Vulkan API.";
 
-                py::class_<ComputeDeviceInterface>(m, "ComputeDeviceInterface").doc() =
-                    "Interface to particular Vulkan device.";
+                py::class_<TaskHandleFloat32>(m, "TaskHandleFloat32").doc() =
+                    "Handle object for referencing single precision GPU compute task.";
 
+                py::class_<TaskHandleFloat64>(m, "TaskHandleFloat64").doc() =
+                    "Handle object for referencing double precision GPU compute task.";
+
+                /* Python API - Wrapper class around TaskConfigurator class. */
+                py::class_<TaskConfigurator>(m, "TaskConfigurator")
+                    .def(
+                        "set_hardware_config",
+                        &TaskConfigurator::set_hardware_config,
+                        py::arg("potential_buffer_size"),
+                        py::arg("group_size"),
+                        py::arg("dispatch_count"),
+                        py::arg("allocation_block_size"),
+                        "Set hardware configuration for a GPU compute task."
+                    )
+                    .def(
+                        "set_morse_potential",
+                        &TaskConfigurator::set_morse_potential,
+                        py::arg("min_atom_distance_au"),
+                        py::arg("max_atom_distance_au"),
+                        py::arg("binding_energy_ev"),
+                        py::arg("well_width"),
+                        "Set potential data source configuration for GPU compute task."
+                    )
+                    .def(
+                        "set_vibwa_algorithm",
+                        &TaskConfigurator::set_vibwa_algorithm,
+                        py::arg("integration_step"),
+                        py::arg("min_distance_to_asymptote"),
+                        py::arg("min_level"),
+                        py::arg("max_level"),
+                        "Set algorithm configuration for a GPU compute task."
+                    )
+                    .def(
+                        "is_configured",
+                        &TaskConfigurator::is_configured,
+                        "Check if this instance is fully configured, i.e. it has been "
+                        "assigned a valid hardware configuration, potential source and "
+                        "algorithm config."
+                    )
+                    .doc() = "Builder for configuring GPU compute task.";
+
+                // Python API - Wrapper class for ComputeDeviceInterface class.
+                py::class_<ComputeDeviceInterface>(m, "ComputeDeviceInterface")
+                    .def(
+                        "get_task_configurator",
+                        &ComputeDeviceInterface::get_task_configurator,
+                        "Get builder instance for configuring GPU compute task."
+                    )
+                    .def(
+                        "submit_task",
+                        &ComputeDeviceInterface::submit_task,
+                        "Submit task for execution. Will raise RuntimeError upon "
+                        "receiving not fully configured TaskConfigurator."
+                    )
+                    .doc() = "Interface to particular Vulkan device.";
+
+                // Python API - Wrapper class for EpseonComputeContext class.
                 py::class_<EpseonComputeContext>(m, "EpseonComputeContext")
                     .def(
                         "create",

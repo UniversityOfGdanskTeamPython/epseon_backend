@@ -7,10 +7,12 @@
 #include "vulkan/vulkan_structs.hpp"
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
 namespace epseon {

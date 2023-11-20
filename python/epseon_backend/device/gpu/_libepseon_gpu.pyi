@@ -78,8 +78,76 @@ class PhysicalDeviceInfo(Protocol):
     device_properties: PhysicalDeviceProperties
     memory_properties: PhysicalDeviceMemoryProperties
 
+class TaskConfigurator:
+    """Builder for GPU compute task."""
+
+    def set_hardware_config(
+        self,
+        potential_buffer_size: int,
+        group_size: int,
+        dispatch_count: int,
+        allocation_block_size: int,
+    ) -> _PartialConfig1:
+        """Set hardware configuration for GPU compute task."""
+
+class _PartialConfig1:
+    """Partially finished configuration on stage 1.
+
+    Includes configuration for hardware.
+    """
+
+    def set_morse_potential(
+        self,
+        min_atom_distance_au: float,
+        max_atom_distance_au: float,
+        binding_energy_ev: float,
+        well_width: float,
+    ) -> _PartialConfig2:
+        """Set potential data source configuration."""
+
+class _PartialConfig2:
+    """Partially finished configuration on stage 2.
+
+    Includes configuration for hardware and for potential source.
+    """
+
+    def set_vibwa_algorithm(
+        self,
+        integration_step: float,
+        min_distance_to_asymptote: float,
+        min_level: int,
+        max_level: int,
+    ) -> TaskConfig:
+        """Set task algorithm configuration."""
+
+class TaskConfig:
+    """Finalized task configuration object."""
+
+class TaskHandle:
+    """Handle object for referencing GPU compute task."""
+
+    def get_status_message(self) -> str:
+        """Get task status message."""
+    def is_done(self) -> bool:
+        """Check if task has finished."""
+    def wait(self) -> None:
+        """Wait for task to finish."""
+
 class ComputeDeviceInterface:
-    """Interface to particular Vulkan device."""
+    """Interface to particular Vulkan device.
+
+    ComputeDeviceInterface doesn't guard against submitting multiple tasks at a time,
+    but doing so might result in undefined behavior in form of race conditions and
+    memory occupancy problems, as it is not prepared for handling such case.
+    """
+
+    def get_task_configurator(
+        self,
+        __precision: Literal["float32", "float64"],
+    ) -> TaskConfigurator:
+        """Get new task configurator instance."""
+    def submit_task(self, __config: TaskConfig) -> TaskHandle:
+        """Submit task for execution."""
 
 class EpseonComputeContext(Protocol):
     """Interface to computations on GPU with Vulkan."""
