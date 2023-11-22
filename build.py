@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+THIS_DIR = Path(__file__).parent
+
 
 class Builder:
     """Class responsible for building epseon_backend binaries."""
@@ -26,6 +28,11 @@ class Builder:
 
     def prepare_submodules(self) -> None:
         """Prepare dependency submodules."""
+        # Skip submodule initialization when not a git repo, eg. when building from
+        # sdist.
+        if not (THIS_DIR / ".git").exists():
+            return
+
         self.git("submodule", "init")
         for dependency_name, dependency_tag in self.DEPS:
             self.git(
