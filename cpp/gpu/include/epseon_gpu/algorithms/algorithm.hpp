@@ -27,6 +27,8 @@ namespace epseon {
                 Algorithm()            = delete;
                 Algorithm(Algorithm&)  = delete;
                 Algorithm(Algorithm&&) = delete;
+
+                void run() = 0;
             };
 
         } // namespace cpp

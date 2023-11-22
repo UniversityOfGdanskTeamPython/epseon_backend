@@ -13,6 +13,7 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace epseon {
     namespace gpu {
@@ -22,12 +23,25 @@ namespace epseon {
 
             template <typename FP>
             class TaskHandle {
-              private:
+              private: /* Private members. */
                 std::shared_ptr<cpp::TaskHandle<FP>> handle = {};
 
-              public:
+              public: /* Public constructors. */
                 TaskHandle(std::shared_ptr<cpp::TaskHandle<FP>> handle_) :
                     handle(handle_) {}
+
+              public: /* Public methods. */
+                std::string get_status_message() {
+                    return "status";
+                }
+
+                bool is_done() {
+                    return true;
+                }
+
+                void wait() {
+                    return;
+                }
             };
 
             template class TaskHandle<float>;
@@ -53,6 +67,46 @@ namespace epseon {
                 TaskHandleVariant submit_task(const TaskConfigurator&);
             };
 
+            class MorsePotentialConfig {
+              private:
+                cpp::MorsePotentialConfig<double> configuration;
+
+              public: /* Public constructors. */
+                // Member-wise constructor.
+                MorsePotentialConfig(cpp::MorsePotentialConfig<double>&& configuration
+                ) :
+                    configuration(configuration) {}
+
+                // Default constructor.
+                MorsePotentialConfig() = default;
+
+                // Copy constructor.
+                MorsePotentialConfig(const MorsePotentialConfig&) = default;
+
+                // Copy assignment operator.
+                MorsePotentialConfig& operator=(const MorsePotentialConfig&) = default;
+
+                // Move constructor.
+                MorsePotentialConfig(MorsePotentialConfig&&) noexcept = default;
+
+                // Move assignment operator.
+                MorsePotentialConfig&
+                operator=(MorsePotentialConfig&&) noexcept = default;
+
+              public: /* Public methods. */
+                static MorsePotentialConfig create(
+                    double   dissociation_energy_,
+                    double   equilibrium_bond_distance_,
+                    double   well_width_,
+                    double   min_r_,
+                    double   max_r_,
+                    uint32_t point_count_
+                );
+
+              public: /* Public methods. */
+                const cpp::MorsePotentialConfig<double>& getConfiguration() const;
+            };
+
             /* Python API - Wrapper class around TaskConfigurator class. */
             class TaskConfigurator {
               private:
@@ -72,12 +126,12 @@ namespace epseon {
 
               public:
                 /* Python API - Set hardware configuration for a GPU compute task. */
-                TaskConfigurator&
-                    set_hardware_config(uint32_t, uint32_t, uint32_t, uint32_t);
+                TaskConfigurator& set_hardware_config(uint32_t, uint32_t, uint32_t);
 
                 /* Python API - Set potential data source configuration for GPU compute
                  * task. */
-                TaskConfigurator& set_morse_potential(double, double, double, double);
+                TaskConfigurator&
+                    set_morse_potential(std::vector<MorsePotentialConfig>);
 
                 /* Python API - Set algorithm configuration for a GPU compute task. */
                 TaskConfigurator&

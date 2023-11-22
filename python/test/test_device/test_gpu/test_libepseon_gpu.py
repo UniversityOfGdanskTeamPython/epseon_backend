@@ -149,18 +149,33 @@ class TestEpseonComputeContext:
         assert id(cfg)
 
     def _configure_task(self, configurator: TaskConfigurator) -> TaskConfig:
+        from epseon_backend.device.gpu._libepseon_gpu import MorsePotentialConfig
+
         return (
             configurator.set_hardware_config(
                 potential_buffer_size=16500,
                 group_size=512,
-                dispatch_count=4096,
                 allocation_block_size=16 * 1024 * 1024,
             )
             .set_morse_potential(
-                min_atom_distance_au=0.1,
-                max_atom_distance_au=0.6,
-                binding_energy_ev=90,
-                well_width=10,
+                [
+                    MorsePotentialConfig(
+                        dissociation_energy=5500.0,
+                        equilibrium_bond_distance=0.6,
+                        well_width=10,
+                        min_r=0.0,
+                        max_r=10.0,
+                        point_count=16500,
+                    ),
+                    MorsePotentialConfig(
+                        dissociation_energy=5500.0,
+                        equilibrium_bond_distance=0.6,
+                        well_width=10,
+                        min_r=0.0,
+                        max_r=10.0,
+                        point_count=16500,
+                    ),
+                ],
             )
             .set_vibwa_algorithm(
                 integration_step=0.1,
@@ -186,7 +201,10 @@ class TestEpseonComputeContext:
 
     def test_get_task_configurator_check_memory_management(self) -> None:
         """Check if underlying implementation's memory management works as expected."""
-        from epseon_backend.device.gpu._libepseon_gpu import EpseonComputeContext
+        from epseon_backend.device.gpu._libepseon_gpu import (
+            EpseonComputeContext,
+            MorsePotentialConfig,
+        )
 
         ctx = EpseonComputeContext.create()
 
@@ -196,14 +214,27 @@ class TestEpseonComputeContext:
         a = configurator.set_hardware_config(
             potential_buffer_size=16500,
             group_size=4096,
-            dispatch_count=16384,
             allocation_block_size=64 * 1024 * 1024,
         )
         b = a.set_morse_potential(
-            min_atom_distance_au=0.1,
-            max_atom_distance_au=0.6,
-            binding_energy_ev=90,
-            well_width=10,
+            [
+                MorsePotentialConfig(
+                    dissociation_energy=5500.0,
+                    equilibrium_bond_distance=0.6,
+                    well_width=10,
+                    min_r=0.0,
+                    max_r=10.0,
+                    point_count=16500,
+                ),
+                MorsePotentialConfig(
+                    dissociation_energy=5500.0,
+                    equilibrium_bond_distance=0.6,
+                    well_width=10,
+                    min_r=0.0,
+                    max_r=10.0,
+                    point_count=16500,
+                ),
+            ],
         )
         c = b.set_vibwa_algorithm(
             integration_step=0.1,

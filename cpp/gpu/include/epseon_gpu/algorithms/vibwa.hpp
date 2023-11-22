@@ -20,6 +20,8 @@ namespace epseon {
                     std::shared_ptr<ComputeDeviceInterface> computeDeviceInterface_
                 ) :
                     Algorithm<FP>(computeDeviceInterface_) {}
+
+                void run();
             };
 
         } // namespace cpp

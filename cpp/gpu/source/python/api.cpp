@@ -17,11 +17,13 @@
 #include <cstdint>
 #include <exception>
 #include <memory>
+#include <optional>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -30,6 +32,29 @@ namespace py = pybind11;
 namespace epseon {
     namespace gpu {
         namespace python {
+
+            MorsePotentialConfig MorsePotentialConfig::create(
+                double   dissociation_energy_,
+                double   equilibrium_bond_distance_,
+                double   well_width_,
+                double   min_r_,
+                double   max_r_,
+                uint32_t point_count_
+            ) {
+                return {std::move(cpp::MorsePotentialConfig<double>(
+                    dissociation_energy_,
+                    equilibrium_bond_distance_,
+                    well_width_,
+                    min_r_,
+                    max_r_,
+                    point_count_
+                ))};
+            }
+
+            const cpp::MorsePotentialConfig<double>&
+            MorsePotentialConfig::getConfiguration() const {
+                return this->configuration;
+            }
 
             TaskConfigurator::TaskConfigurator(
                 cpp::PrecisionType                            precision_,
@@ -71,21 +96,16 @@ namespace epseon {
             TaskConfigurator& TaskConfigurator::set_hardware_config(
                 uint32_t potential_buffer_size,
                 uint32_t group_size,
-                uint32_t dispatch_count,
                 uint32_t allocation_block_size
             ) {
                 auto helper = [potential_buffer_size,
                                group_size,
-                               dispatch_count,
                                allocation_block_size,
                                this]<typename T>(T val_) {
                     auto& cfg =
                         std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
                     cfg.setHardwareConfig(std::make_unique<cpp::HardwareConfig<T>>(
-                        potential_buffer_size,
-                        group_size,
-                        dispatch_count,
-                        allocation_block_size
+                        potential_buffer_size, group_size, allocation_block_size
                     ));
                 };
 
@@ -108,24 +128,43 @@ namespace epseon {
             }
 
             TaskConfigurator& TaskConfigurator::set_morse_potential(
-                double min_atom_distance_au,
-                double max_atom_distance_au,
-                double binding_energy_ev,
-                double well_width
+                std::vector<MorsePotentialConfig> configurations
             ) {
-                auto helper = [min_atom_distance_au,
-                               max_atom_distance_au,
-                               binding_energy_ev,
-                               well_width,
-                               this]<typename T>(T val_) {
+                auto helper = [&configurations, this]<typename T>(T val_) {
                     auto& cfg =
                         std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
+                    std::optional<uint32_t> point_count = std::nullopt;
+
+                    std::vector<cpp::MorsePotentialConfig<T>> configurations_cpp(
+                        configurations.size()
+                    );
+                    for (const auto& element : configurations) {
+                        auto current_element_point_count =
+                            element.getConfiguration().getPointCount();
+                        if (point_count.has_value() &&
+                            point_count.value() != current_element_point_count) {
+                            throw std::runtime_error(fmt::format(
+                                "All Morse potentials must have same point "
+                                "count, but previous ones had {} and current one has.",
+                                point_count.value(),
+                                current_element_point_count
+                            ));
+                        } else {
+                            point_count = {current_element_point_count};
+                        }
+                        configurations_cpp.emplace_back(
+                            element.getConfiguration().getDissociationEnergy<T>(),
+                            element.getConfiguration().getEquilibriumBondDistance<T>(),
+                            element.getConfiguration().getWellWidth<T>(),
+                            element.getConfiguration().getMinR<T>(),
+                            element.getConfiguration().getMaxR<T>(),
+                            current_element_point_count
+                        );
+                    }
+
                     cfg.setPotentialSource(
                         std::make_unique<cpp::MorsePotentialGenerator<T>>(
-                            static_cast<T>(min_atom_distance_au),
-                            static_cast<T>(max_atom_distance_au),
-                            static_cast<T>(binding_energy_ev),
-                            static_cast<T>(well_width)
+                            std::move(configurations_cpp)
                         )
                     );
                 };
@@ -538,11 +577,33 @@ namespace epseon {
                     .doc() =
                     "Container for physical device info retrieved from Vulkan API.";
 
-                py::class_<TaskHandleFloat32>(m, "TaskHandleFloat32").doc() =
-                    "Handle object for referencing single precision GPU compute task.";
+#define TaskHandlerPyInterface(cls)                                                    \
+    /* ---------------------------------------------------------------------------- */ \
+    py::class_<cls>(m, #cls)                                                           \
+        .def(                                                                          \
+            "get_status_message",                                                      \
+            &cls::get_status_message,                                                  \
+            "Get status message explaining current execution stage."                   \
+        )                                                                              \
+        .def("is_done", &cls::is_done, "Check if task already finished execution.")    \
+        .def("wait", &cls::wait, "Block and wait for task to finish.")                 \
+        .doc() = "Handle object for referencing double precision GPU compute task."
 
-                py::class_<TaskHandleFloat64>(m, "TaskHandleFloat64").doc() =
-                    "Handle object for referencing double precision GPU compute task.";
+                TaskHandlerPyInterface(TaskHandleFloat32);
+                TaskHandlerPyInterface(TaskHandleFloat64);
+
+                py::class_<MorsePotentialConfig>(m, "MorsePotentialConfig")
+                    .def(
+                        py::init(&MorsePotentialConfig::create),
+                        py::arg("dissociation_energy"),
+                        py::arg("equilibrium_bond_distance"),
+                        py::arg("well_width"),
+                        py::arg("min_r"),
+                        py::arg("max_r"),
+                        py::arg("point_count"),
+                        "Create instance of MorsePotentialConfig class."
+                    )
+                    .doc() = "Configuration of single Morse potential curve.";
 
                 /* Python API - Wrapper class around TaskConfigurator class. */
                 py::class_<TaskConfigurator>(m, "TaskConfigurator")
@@ -551,18 +612,15 @@ namespace epseon {
                         &TaskConfigurator::set_hardware_config,
                         py::arg("potential_buffer_size"),
                         py::arg("group_size"),
-                        py::arg("dispatch_count"),
                         py::arg("allocation_block_size"),
                         "Set hardware configuration for a GPU compute task."
                     )
                     .def(
                         "set_morse_potential",
                         &TaskConfigurator::set_morse_potential,
-                        py::arg("min_atom_distance_au"),
-                        py::arg("max_atom_distance_au"),
-                        py::arg("binding_energy_ev"),
-                        py::arg("well_width"),
-                        "Set potential data source configuration for GPU compute task."
+                        py::arg("configurations"),
+                        "Set potential data source configuration for GPU compute "
+                        "task."
                     )
                     .def(
                         "set_vibwa_algorithm",
@@ -576,8 +634,10 @@ namespace epseon {
                     .def(
                         "is_configured",
                         &TaskConfigurator::is_configured,
-                        "Check if this instance is fully configured, i.e. it has been "
-                        "assigned a valid hardware configuration, potential source and "
+                        "Check if this instance is fully configured, i.e. it has "
+                        "been "
+                        "assigned a valid hardware configuration, potential source "
+                        "and "
                         "algorithm config."
                     )
                     .doc() = "Builder for configuring GPU compute task.";

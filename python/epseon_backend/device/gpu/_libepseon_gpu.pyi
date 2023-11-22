@@ -85,10 +85,23 @@ class TaskConfigurator:
         self,
         potential_buffer_size: int,
         group_size: int,
-        dispatch_count: int,
         allocation_block_size: int,
     ) -> _PartialConfig1:
         """Set hardware configuration for GPU compute task."""
+
+class MorsePotentialConfig:
+    """Configuration of single Morse potential curve."""
+
+    def __init__(  # noqa: PLR0913
+        self,
+        dissociation_energy: float,
+        equilibrium_bond_distance: float,
+        well_width: float,
+        min_r: float,
+        max_r: float,
+        point_count: int,
+    ) -> None:
+        """Create instance of MorsePotentialConfig class."""
 
 class _PartialConfig1:
     """Partially finished configuration on stage 1.
@@ -98,12 +111,14 @@ class _PartialConfig1:
 
     def set_morse_potential(
         self,
-        min_atom_distance_au: float,
-        max_atom_distance_au: float,
-        binding_energy_ev: float,
-        well_width: float,
+        __configs: list[MorsePotentialConfig],
     ) -> _PartialConfig2:
-        """Set potential data source configuration."""
+        """Set potential data source configuration.
+
+        Raises
+        ------
+        RuntimeError when MorsePotentialConfigs with different point counts are used.
+        """
 
 class _PartialConfig2:
     """Partially finished configuration on stage 2.

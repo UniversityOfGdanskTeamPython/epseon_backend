@@ -20,19 +20,16 @@ namespace epseon {
               public:
                 uint32_t potential_buffer_size = {};
                 uint32_t group_size            = {};
-                uint32_t dispatch_count        = {};
                 uint32_t allocation_block_size = {};
 
               public:
                 HardwareConfig(
                     uint32_t potential_buffer_size_,
                     uint32_t group_size_,
-                    uint32_t dispatch_count_,
                     uint32_t allocation_block_size_
                 ) :
                     potential_buffer_size(potential_buffer_size_),
                     group_size(group_size_),
-                    dispatch_count(dispatch_count_),
                     allocation_block_size(allocation_block_size_) {}
 
               public: /* Public destructor. */
@@ -135,24 +132,95 @@ namespace epseon {
             };
 
             template <typename FP>
+            class MorsePotentialConfig {
+                static_assert(
+                    std::is_floating_point<FP>::value,
+                    "FP must be an floating-point type."
+                );
+
+              private:
+                FP       dissociation_energy       = {};
+                FP       equilibrium_bond_distance = {};
+                FP       well_width                = {};
+                FP       min_r                     = {};
+                FP       max_r                     = {};
+                uint32_t point_count               = {};
+
+              public: /* Public constructors. */
+                // Member-wise constructor.
+                MorsePotentialConfig(
+                    FP       dissociation_energy_,
+                    FP       equilibrium_bond_distance_,
+                    FP       well_width_,
+                    FP       min_r_,
+                    FP       max_r_,
+                    uint32_t point_count_
+                ) :
+                    dissociation_energy(dissociation_energy_),
+                    equilibrium_bond_distance(equilibrium_bond_distance_),
+                    well_width(well_width_),
+                    min_r(min_r_),
+                    max_r(max_r_),
+                    point_count(point_count_) {}
+
+                // Default constructor.
+                MorsePotentialConfig() = default;
+
+                // Copy constructor.
+                MorsePotentialConfig(const MorsePotentialConfig&) = default;
+
+                // Copy assignment operator.
+                MorsePotentialConfig& operator=(const MorsePotentialConfig&) = default;
+
+                // Move constructor.
+                MorsePotentialConfig(MorsePotentialConfig&&) noexcept = default;
+
+                // Move assignment operator.
+                MorsePotentialConfig&
+                operator=(MorsePotentialConfig&&) noexcept = default;
+
+              public: /* Public methods. */
+                template <typename FP_>
+                FP_ getDissociationEnergy() const {
+                    return static_cast<FP_>(this->dissociation_energy);
+                }
+
+                template <typename FP_>
+                FP_ getEquilibriumBondDistance() const {
+                    return static_cast<FP_>(this->equilibrium_bond_distance);
+                }
+
+                template <typename FP_>
+                FP_ getWellWidth() const {
+                    return static_cast<FP_>(this->well_width);
+                }
+
+                template <typename FP_>
+                FP_ getMinR() const {
+                    return static_cast<FP_>(this->min_r);
+                }
+
+                template <typename FP_>
+                FP_ getMaxR() const {
+                    return static_cast<FP_>(this->max_r);
+                }
+
+                uint32_t getPointCount() const {
+                    return this->point_count;
+                }
+            };
+
+            template <typename FP>
             class MorsePotentialGenerator : public PotentialSource<FP> {
-                FP min_atom_distance_au = {};
-                FP max_atom_distance_au = {};
-                FP binding_energy_ev    = {};
-                FP well_width           = {};
+              public:
+                std::vector<MorsePotentialConfig<FP>> configurations = {};
 
               public: /* Public constructors. */
                 // Member-wise constructor.
                 MorsePotentialGenerator(
-                    FP min_atom_distance_au_,
-                    FP max_atom_distance_au_,
-                    FP binding_energy_ev_,
-                    FP well_width_
+                    std::vector<MorsePotentialConfig<FP>>&& configurations_
                 ) :
-                    min_atom_distance_au(min_atom_distance_au_),
-                    max_atom_distance_au(max_atom_distance_au_),
-                    binding_energy_ev(binding_energy_ev_),
-                    well_width(well_width_) {}
+                    configurations(configurations_) {}
 
                 // Default constructor.
                 MorsePotentialGenerator() = default;
