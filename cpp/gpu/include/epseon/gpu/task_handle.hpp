@@ -3,7 +3,7 @@
 #include "epseon/gpu/predecl.hpp"
 
 #include "epseon/gpu/device_interface.hpp"
-#include "epseon/gpu/task_configurator.hpp"
+#include "epseon/gpu/task_configurator/task_configurator.hpp"
 #include <memory>
 #include <stdexcept>
 #include <thread>

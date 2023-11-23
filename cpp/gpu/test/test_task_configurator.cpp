@@ -1,5 +1,5 @@
 
-#include "epseon/gpu/task_configurator.hpp"
+#include "epseon/gpu/libgpu.hpp"
 #include <array>
 #include <gtest/gtest.h>
 #include <memory>

@@ -4,7 +4,7 @@
 
 #include "epseon/gpu/compute_context.hpp"
 #include "epseon/gpu/enums.hpp"
-#include "epseon/gpu/task_configurator.hpp"
+#include "epseon/gpu/task_configurator/task_configurator.hpp"
 #include "epseon/gpu/task_handle.hpp"
 #include "fmt/format.h"
 #include <cstdint>

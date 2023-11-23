@@ -5,7 +5,10 @@
 #include "epseon/gpu/compute_context.hpp"
 #include "epseon/gpu/device_interface.hpp"
 #include "epseon/gpu/enums.hpp"
-#include "epseon/gpu/task_configurator.hpp"
+#include "epseon/gpu/task_configurator/algorithm_config.hpp"
+#include "epseon/gpu/task_configurator/hardware_config.hpp"
+#include "epseon/gpu/task_configurator/potential_source.hpp"
+#include "epseon/gpu/task_configurator/task_configurator.hpp"
 #include "epseon/gpu/task_handle.hpp"
 #include "pybind11/pytypes.h"
 #include <cstdint>
