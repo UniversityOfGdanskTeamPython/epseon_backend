@@ -1,4 +1,4 @@
-#include "epseon_gpu/libgpu.hpp"
+#include "epseon/gpu/libgpu.hpp"
 #include <gtest/gtest.h>
 
 namespace epseon {

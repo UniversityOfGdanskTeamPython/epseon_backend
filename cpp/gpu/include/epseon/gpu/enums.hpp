@@ -1,5 +1,7 @@
 #pragma once
 
+#include "epseon/libepseon.hpp"
+
 #include <cassert>
 #include <exception>
 #include <stdexcept>

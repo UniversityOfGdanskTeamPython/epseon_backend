@@ -1,7 +1,7 @@
 
-#include "epseon_gpu/compute_context.hpp"
-#include "epseon_gpu/common.hpp"
-#include "epseon_gpu/device_interface.hpp"
+#include "epseon/gpu/compute_context.hpp"
+#include "epseon/gpu/common.hpp"
+#include "epseon/gpu/device_interface.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/spdlog.h"
 #include "vulkan/vulkan_structs.hpp"
@@ -50,7 +50,7 @@ namespace epseon {
                 auto logger = spdlog::get("_libepseon_gpu");
                 if (!logger) {
                     logger = spdlog::basic_logger_mt(
-                        "_libepseon_gpu", "./log/libepseon_gpu/log.txt"
+                        "_libepseon_gpu", "./log/epseon/gpu/log.txt"
                     );
                 }
 
@@ -80,9 +80,9 @@ namespace epseon {
 
                 auto applicationInfo = std::make_shared<vk::ApplicationInfo>();
                 applicationInfo->setApplicationVersion(version)
-                    .setPApplicationName("libepseon_gpu")
+                    .setPApplicationName("libepseon/gpu/")
                     .setEngineVersion(version)
-                    .setPEngineName("libepseon_gpu")
+                    .setPEngineName("libepseon/gpu/")
                     .setApiVersion(VK_API_VERSION_1_1);
 
                 std::vector<const char*> instanceExtensions{};

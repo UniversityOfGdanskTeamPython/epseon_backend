@@ -1,6 +1,6 @@
 #pragma once
 
-#include "epseon/libepseon.hpp"
+#include "epseon/gpu/predecl.hpp"
 
 #include "spdlog/logger.h"
 #include <cstdint>

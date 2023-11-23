@@ -1,11 +1,12 @@
 #pragma once
 
-#include "epseon/libepseon.hpp"
-#include "epseon_gpu/compute_context.hpp"
-#include "epseon_gpu/device_interface.hpp"
-#include "epseon_gpu/enums.hpp"
-#include "epseon_gpu/task_configurator.hpp"
-#include "epseon_gpu/task_handle.hpp"
+#include "epseon/gpu/predecl.hpp"
+
+#include "epseon/gpu/compute_context.hpp"
+#include "epseon/gpu/device_interface.hpp"
+#include "epseon/gpu/enums.hpp"
+#include "epseon/gpu/task_configurator.hpp"
+#include "epseon/gpu/task_handle.hpp"
 #include "pybind11/pytypes.h"
 #include <cstdint>
 #include <memory>
@@ -18,8 +19,6 @@
 namespace epseon {
     namespace gpu {
         namespace python {
-
-            class TaskConfigurator;
 
             template <typename FP>
             class TaskHandle {

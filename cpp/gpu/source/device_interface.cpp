@@ -1,4 +1,4 @@
-#include "epseon_gpu/device_interface.hpp"
+#include "epseon/gpu/device_interface.hpp"
 #include <vulkan/vulkan_raii.hpp>
 
 namespace epseon {

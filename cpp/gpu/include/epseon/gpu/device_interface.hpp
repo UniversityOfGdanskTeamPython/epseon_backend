@@ -1,9 +1,11 @@
 #pragma once
 
-#include "epseon_gpu/compute_context.hpp"
-#include "epseon_gpu/enums.hpp"
-#include "epseon_gpu/task_configurator.hpp"
-#include "epseon_gpu/task_handle.hpp"
+#include "epseon/gpu/predecl.hpp"
+
+#include "epseon/gpu/compute_context.hpp"
+#include "epseon/gpu/enums.hpp"
+#include "epseon/gpu/task_configurator.hpp"
+#include "epseon/gpu/task_handle.hpp"
 #include "fmt/format.h"
 #include <cstdint>
 #include <memory>
@@ -17,8 +19,8 @@ namespace epseon {
     namespace gpu {
         namespace cpp {
 
-            template <typename FP>
-            class TaskHandle;
+            typedef std::variant<TaskConfigurator<float>, TaskConfigurator<double>>
+                TaskConfiguratorVariant;
 
             struct BufferRequirements {
               public:

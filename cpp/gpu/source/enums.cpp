@@ -1,4 +1,4 @@
-#include "epseon_gpu/enums.hpp"
+#include "epseon/gpu/enums.hpp"
 #include "fmt/format.h"
 #include <algorithm>
 #include <cassert>

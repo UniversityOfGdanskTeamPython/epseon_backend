@@ -1,7 +1,12 @@
 
 #pragma once
-#include "epseon_gpu/compute_context.hpp"
-#include "epseon_gpu/enums.hpp"
+
+#include "epseon/gpu/predecl.hpp"
+
+#include "epseon/gpu/algorithms/algorithm.hpp"
+#include "epseon/gpu/algorithms/vibwa.hpp"
+#include "epseon/gpu/compute_context.hpp"
+#include "epseon/gpu/enums.hpp"
 #include <memory>
 #include <span>
 #include <string>
@@ -287,9 +292,14 @@ namespace epseon {
                 virtual ~AlgorithmConfig() = default;
 
               public: /* Public methods. */
+                virtual std::shared_ptr<Algorithm<FP>>
+                    getImplementation(std::shared_ptr<TaskHandle<FP>>) const      = 0;
                 virtual std::shared_ptr<AlgorithmConfig<FP>> shared_clone() const = 0;
                 virtual std::unique_ptr<AlgorithmConfig<FP>> unique_clone() const = 0;
             };
+
+            template <typename FP>
+            class VibwaAlgorithm;
 
             template <typename FP>
             class VibwaAlgorithmConfig : public AlgorithmConfig<FP> {
@@ -333,6 +343,12 @@ namespace epseon {
                 virtual ~VibwaAlgorithmConfig() = default;
 
               public: /* Public methods. */
+                virtual std::shared_ptr<Algorithm<FP>>
+                getImplementation(std::shared_ptr<TaskHandle<FP>> handle
+                ) const override {
+                    return std::make_shared<VibwaAlgorithm<FP>>();
+                }
+
                 virtual std::shared_ptr<AlgorithmConfig<FP>>
                 shared_clone() const override {
                     return std::make_shared<VibwaAlgorithmConfig<FP>>(*this);
@@ -343,9 +359,6 @@ namespace epseon {
                     return std::make_unique<VibwaAlgorithmConfig<FP>>(*this);
                 }
             };
-
-            template <typename T>
-            class RunningTask {};
 
             /* Builder for configuring GPU compute task. */
             template <typename FP>
@@ -416,6 +429,11 @@ namespace epseon {
                     return *this;
                 };
 
+                /* Get hardware configuration for a GPU compute task. */
+                const HardwareConfig<FP>& getHardwareConfig() const {
+                    return *this->hardware_config;
+                };
+
                 /* Set potential data source configuration for GPU compute task. */
                 TaskConfigurator&
                 setPotentialSource(std::unique_ptr<PotentialSource<FP>> ps) {
@@ -423,11 +441,21 @@ namespace epseon {
                     return *this;
                 };
 
+                /* Get potential data source configuration for GPU compute task. */
+                const PotentialSource<FP>& getPotentialSource() const {
+                    return *this->potential_source;
+                };
+
                 /* Set algorithm configuration for a GPU compute task. */
                 TaskConfigurator&
                 setAlgorithmConfig(std::unique_ptr<AlgorithmConfig<FP>> ac) {
                     this->algorithm_config.swap(ac);
                     return *this;
+                };
+
+                /* Get algorithm configuration for a GPU compute task. */
+                const AlgorithmConfig<FP>& getAlgorithmConfig() const {
+                    return *this->algorithm_config;
                 };
 
                 /* Check if this instance is fully configured, i.e. it has been assigned
