@@ -12,7 +12,8 @@ namespace epseon {
         namespace cpp {
 
             template <typename FP>
-            class PotentialSource {
+            class PotentialSource
+                : public std::enable_shared_from_this<PotentialSource<FP>> {
                 static_assert(
                     std::is_floating_point<FP>::value,
                     "FP must be an floating-point type."

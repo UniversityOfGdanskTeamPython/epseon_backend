@@ -10,14 +10,14 @@ namespace epseon {
         namespace cpp {
 
             template <typename FP>
-            class Algorithm {
+            class Algorithm : public std::enable_shared_from_this<Algorithm<FP>> {
                 static_assert(
                     std::is_floating_point<FP>::value,
                     "FP must be an floating-point type."
                 );
 
               public:
-                virtual void run(std::shared_ptr<TaskHandle<FP>>) = 0;
+                virtual void run(std::stop_token, std::shared_ptr<TaskHandle<FP>>) = 0;
             };
 
         } // namespace cpp

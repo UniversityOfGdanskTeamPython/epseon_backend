@@ -126,8 +126,10 @@ class _PartialConfig2:
     Includes configuration for hardware and for potential source.
     """
 
-    def set_vibwa_algorithm(
+    def set_vibwa_algorithm(  # noqa: PLR0913
         self,
+        mass_atom_0: float,
+        mass_atom_1: float,
         integration_step: float,
         min_distance_to_asymptote: float,
         min_level: int,

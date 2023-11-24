@@ -9,7 +9,11 @@ import pytest
 from epseon_backend.format import convert_size_in_bytes_to_adaptive_unit
 
 if TYPE_CHECKING:
-    from epseon_backend.device.gpu._libepseon_gpu import TaskConfig, TaskConfigurator
+    from epseon_backend.device.gpu._libepseon_gpu import (
+        TaskConfig,
+        TaskConfigurator,
+        TaskHandle,
+    )
 
 COMPUTE_GROUP_AXES_COUNT = 3
 
@@ -178,6 +182,8 @@ class TestEpseonComputeContext:
                 ],
             )
             .set_vibwa_algorithm(
+                mass_atom_0=87.62,
+                mass_atom_1=87.62,
                 integration_step=0.1,
                 min_distance_to_asymptote=0.1,
                 min_level=0,
@@ -237,6 +243,8 @@ class TestEpseonComputeContext:
             ],
         )
         c = b.set_vibwa_algorithm(
+            mass_atom_0=87.62,
+            mass_atom_1=87.62,
             integration_step=0.1,
             min_distance_to_asymptote=0.1,
             min_level=0,
@@ -260,4 +268,53 @@ class TestEpseonComputeContext:
         interface = ctx.get_device_interface(device_info.device_properties.device_id)
         configurator = interface.get_task_configurator(precision)
         cfg = self._configure_task(configurator)
-        interface.submit_task(cfg)
+        handle = interface.submit_task(cfg)
+
+        assert isinstance(handle.get_status_message(), str)
+
+    @pytest.mark.parametrize("precision", ["float32", "float64"])
+    def test_submit_task_with_ctx_going_out_of_scope(
+        self,
+        precision: Literal["float32", "float64"],
+    ) -> None:
+        """Check if task still finishes when ctx goes out of scope."""
+        import gc
+
+        from epseon_backend.device.gpu._libepseon_gpu import EpseonComputeContext
+
+        ctx = EpseonComputeContext.create()
+
+        device_info = next(iter(ctx.get_physical_device_info()))
+        interface = ctx.get_device_interface(device_info.device_properties.device_id)
+
+        del ctx
+        gc.collect(0)
+        gc.collect(1)
+        gc.collect(2)
+
+        configurator = interface.get_task_configurator(precision)
+        cfg = self._configure_task(configurator)
+
+        handle = interface.submit_task(cfg)
+        assert isinstance(handle.get_status_message(), str)
+
+    def test_submit_and_wait(self) -> None:
+        """Submit task and wait for it to finish."""
+        handle = self._submit_task("float32")
+        handle.wait()
+        assert handle.is_done()
+
+    def _submit_task(
+        self,
+        precision: Literal["float32", "float64"],
+    ) -> TaskHandle:
+        from epseon_backend.device.gpu._libepseon_gpu import EpseonComputeContext
+
+        ctx = EpseonComputeContext.create()
+
+        device_info = next(iter(ctx.get_physical_device_info()))
+        interface = ctx.get_device_interface(device_info.device_properties.device_id)
+        configurator = interface.get_task_configurator(precision)
+        cfg = self._configure_task(configurator)
+
+        return interface.submit_task(cfg)

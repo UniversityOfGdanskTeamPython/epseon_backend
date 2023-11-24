@@ -104,7 +104,7 @@ namespace epseon {
                                this]<typename T>(T val_) {
                     auto& cfg =
                         std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
-                    cfg.setHardwareConfig(std::make_unique<cpp::HardwareConfig<T>>(
+                    cfg.setHardwareConfig(std::make_shared<cpp::HardwareConfig<T>>(
                         potential_buffer_size, group_size, allocation_block_size
                     ));
                 };
@@ -128,7 +128,7 @@ namespace epseon {
             }
 
             TaskConfigurator& TaskConfigurator::set_morse_potential(
-                std::vector<MorsePotentialConfig> configurations
+                const std::vector<MorsePotentialConfig>& configurations
             ) {
                 auto helper = [&configurations, this]<typename T>(T val_) {
                     auto& cfg =
@@ -163,7 +163,7 @@ namespace epseon {
                     }
 
                     cfg.setPotentialSource(
-                        std::make_unique<cpp::MorsePotentialGenerator<T>>(
+                        std::make_shared<cpp::MorsePotentialGenerator<T>>(
                             std::move(configurations_cpp)
                         )
                     );
@@ -188,12 +188,16 @@ namespace epseon {
             }
 
             TaskConfigurator& TaskConfigurator::set_vibwa_algorithm(
+                double   mass_atom_0,
+                double   mass_atom_1,
                 double   integration_step,
                 double   min_distance_to_asymptote,
                 uint32_t min_level,
                 uint32_t max_level
             ) {
-                auto helper = [integration_step,
+                auto helper = [mass_atom_0,
+                               mass_atom_1,
+                               integration_step,
                                min_distance_to_asymptote,
                                min_level,
                                max_level,
@@ -201,7 +205,9 @@ namespace epseon {
                     auto& cfg =
                         std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
                     cfg.setAlgorithmConfig(
-                        std::make_unique<cpp::VibwaAlgorithmConfig<T>>(
+                        std::make_shared<cpp::VibwaAlgorithmConfig<T>>(
+                            static_cast<T>(mass_atom_0),
+                            static_cast<T>(mass_atom_1),
                             static_cast<T>(integration_step),
                             static_cast<T>(min_distance_to_asymptote),
                             min_level,
@@ -577,20 +583,43 @@ namespace epseon {
                     .doc() =
                     "Container for physical device info retrieved from Vulkan API.";
 
-#define TaskHandlerPyInterface(cls)                                                    \
-    /* ---------------------------------------------------------------------------- */ \
-    py::class_<cls>(m, #cls)                                                           \
-        .def(                                                                          \
-            "get_status_message",                                                      \
-            &cls::get_status_message,                                                  \
-            "Get status message explaining current execution stage."                   \
-        )                                                                              \
-        .def("is_done", &cls::is_done, "Check if task already finished execution.")    \
-        .def("wait", &cls::wait, "Block and wait for task to finish.")                 \
-        .doc() = "Handle object for referencing double precision GPU compute task."
+                py::class_<TaskHandleFloat32>(m, "TaskHandleFloat32")
+                    .def(
+                        "get_status_message",
+                        &TaskHandleFloat32::get_status_message,
+                        "Get status message explaining current execution stage."
+                    )
+                    .def(
+                        "is_done",
+                        &TaskHandleFloat32::is_done,
+                        "Check if task already finished execution."
+                    )
+                    .def(
+                        "wait",
+                        &TaskHandleFloat32::wait,
+                        "Block and wait for task to finish."
+                    )
+                    .doc() =
+                    "Handle object for referencing double precision GPU compute task.";
 
-                TaskHandlerPyInterface(TaskHandleFloat32);
-                TaskHandlerPyInterface(TaskHandleFloat64);
+                py::class_<TaskHandleFloat64>(m, "TaskHandleFloat64")
+                    .def(
+                        "get_status_message",
+                        &TaskHandleFloat64::get_status_message,
+                        "Get status message explaining current execution stage."
+                    )
+                    .def(
+                        "is_done",
+                        &TaskHandleFloat64::is_done,
+                        "Check if task already finished execution."
+                    )
+                    .def(
+                        "wait",
+                        &TaskHandleFloat64::wait,
+                        "Block and wait for task to finish."
+                    )
+                    .doc() =
+                    "Handle object for referencing double precision GPU compute task.";
 
                 py::class_<MorsePotentialConfig>(m, "MorsePotentialConfig")
                     .def(
@@ -625,6 +654,8 @@ namespace epseon {
                     .def(
                         "set_vibwa_algorithm",
                         &TaskConfigurator::set_vibwa_algorithm,
+                        py::arg("mass_atom_0"),
+                        py::arg("mass_atom_1"),
                         py::arg("integration_step"),
                         py::arg("min_distance_to_asymptote"),
                         py::arg("min_level"),

@@ -16,16 +16,17 @@ namespace epseon {
 
             /* Builder for configuring GPU compute task. */
             template <typename FP>
-            class TaskConfigurator {
+            class TaskConfigurator
+                : public std::enable_shared_from_this<TaskConfigurator<FP>> {
                 static_assert(
                     std::is_floating_point<FP>::value,
                     "FP must be an floating-point type."
                 );
 
               private:
-                std::unique_ptr<HardwareConfig<FP>>  hardware_config  = {};
-                std::unique_ptr<PotentialSource<FP>> potential_source = {};
-                std::unique_ptr<AlgorithmConfig<FP>> algorithm_config = {};
+                std::shared_ptr<HardwareConfig<FP>>  hardware_config  = {};
+                std::shared_ptr<PotentialSource<FP>> potential_source = {};
+                std::shared_ptr<AlgorithmConfig<FP>> algorithm_config = {};
 
               public: /* Public constructors. */
                 // Default constructor
@@ -39,17 +40,17 @@ namespace epseon {
                 TaskConfigurator(const TaskConfigurator& other) :
                     hardware_config(
                         other.hardware_config
-                            ? std::move(other.hardware_config->unique_clone())
+                            ? std::move(other.hardware_config->shared_clone())
                             : nullptr
                     ),
                     potential_source(
                         other.potential_source
-                            ? std::move(other.potential_source->unique_clone())
+                            ? std::move(other.potential_source->shared_clone())
                             : nullptr
                     ),
                     algorithm_config(
                         other.algorithm_config
-                            ? std::move(other.algorithm_config->unique_clone())
+                            ? std::move(other.algorithm_config->shared_clone())
                             : nullptr
                     ) {}
 
@@ -58,15 +59,15 @@ namespace epseon {
                     if (this != &other) {
                         hardware_config =
                             other.hardware_config
-                                ? std::move(other.hardware_config->unique_clone())
+                                ? std::move(other.hardware_config->shared_clone())
                                 : nullptr;
                         potential_source =
                             other.potential_source
-                                ? std::move(other.potential_source->unique_clone())
+                                ? std::move(other.potential_source->shared_clone())
                                 : nullptr;
                         algorithm_config =
                             other.algorithm_config
-                                ? std::move(other.algorithm_config->unique_clone())
+                                ? std::move(other.algorithm_config->shared_clone())
                                 : nullptr;
                     }
                     return *this;
@@ -78,38 +79,38 @@ namespace epseon {
 
                 /* Set hardware configuration for a GPU compute task. */
                 TaskConfigurator&
-                setHardwareConfig(std::unique_ptr<HardwareConfig<FP>> cfg) {
-                    this->hardware_config.swap(cfg);
+                setHardwareConfig(std::shared_ptr<HardwareConfig<FP>> cfg) {
+                    this->hardware_config = cfg->shared_clone();
                     return *this;
                 };
 
                 /* Get hardware configuration for a GPU compute task. */
-                const HardwareConfig<FP>& getHardwareConfig() const {
-                    return *this->hardware_config;
+                const std::shared_ptr<HardwareConfig<FP>> getHardwareConfig() const {
+                    return this->hardware_config;
                 };
 
                 /* Set potential data source configuration for GPU compute task. */
                 TaskConfigurator&
-                setPotentialSource(std::unique_ptr<PotentialSource<FP>> ps) {
-                    this->potential_source.swap(ps);
+                setPotentialSource(std::shared_ptr<PotentialSource<FP>> ps) {
+                    this->potential_source = ps->shared_clone();
                     return *this;
                 };
 
                 /* Get potential data source configuration for GPU compute task. */
-                const PotentialSource<FP>& getPotentialSource() const {
-                    return *this->potential_source;
+                const std::shared_ptr<PotentialSource<FP>> getPotentialSource() const {
+                    return this->potential_source;
                 };
 
                 /* Set algorithm configuration for a GPU compute task. */
                 TaskConfigurator&
-                setAlgorithmConfig(std::unique_ptr<AlgorithmConfig<FP>> ac) {
-                    this->algorithm_config.swap(ac);
+                setAlgorithmConfig(std::shared_ptr<AlgorithmConfig<FP>> ac) {
+                    this->algorithm_config = ac->shared_clone();
                     return *this;
                 };
 
                 /* Get algorithm configuration for a GPU compute task. */
-                const AlgorithmConfig<FP>& getAlgorithmConfig() const {
-                    return *this->algorithm_config;
+                const std::shared_ptr<AlgorithmConfig<FP>> getAlgorithmConfig() const {
+                    return this->algorithm_config;
                 };
 
                 /* Check if this instance is fully configured, i.e. it has been assigned

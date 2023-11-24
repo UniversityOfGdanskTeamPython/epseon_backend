@@ -30,19 +30,38 @@ namespace epseon {
 
               public: /* Public constructors. */
                 TaskHandle(std::shared_ptr<cpp::TaskHandle<FP>> handle_) :
-                    handle(handle_) {}
+                    handle(handle_) {
+                    this->handle->start_worker();
+                }
 
               public: /* Public methods. */
                 std::string get_status_message() {
                     return "status";
                 }
 
+                /* Python API - Check if task is already finished. */
                 bool is_done() {
-                    return true;
+                    return handle->is_done();
                 }
 
+                /* Python API - Cancel running task - will not result in immediate
+                 * interrupt but rather will wait for response of worker thread.
+                 *
+                 * Returns true if the stop_source object has a stop-state and this
+                 * invocation made a stop request, otherwise false
+                 *
+                 * Raises RuntimeError when internal worker doesn't exist.
+                 */
+                void cancel() {
+                    handle->cancel();
+                };
+
+                /* Python API - Wait for worker thread to finish.
+                 *
+                 * Raises RuntimeError when internal worker doesn't exist.
+                 */
                 void wait() {
-                    return;
+                    handle->wait();
                 }
             };
 
@@ -133,11 +152,11 @@ namespace epseon {
                 /* Python API - Set potential data source configuration for GPU compute
                  * task. */
                 TaskConfigurator&
-                    set_morse_potential(std::vector<MorsePotentialConfig>);
+                set_morse_potential(const std::vector<MorsePotentialConfig>&);
 
                 /* Python API - Set algorithm configuration for a GPU compute task. */
                 TaskConfigurator&
-                set_vibwa_algorithm(double, double, uint32_t, uint32_t);
+                set_vibwa_algorithm(double, double, double, double, uint32_t, uint32_t);
 
                 /* Python API - Check if this instance is fully configured, i.e. it has
                  * been assigned a valid hardware configuration, potential source and

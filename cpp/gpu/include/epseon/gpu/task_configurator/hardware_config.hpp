@@ -11,7 +11,8 @@ namespace epseon {
         namespace cpp {
 
             template <typename FP>
-            struct HardwareConfig {
+            struct HardwareConfig
+                : public std::enable_shared_from_this<HardwareConfig<FP>> {
 
               public:
                 uint32_t potential_buffer_size = {};
