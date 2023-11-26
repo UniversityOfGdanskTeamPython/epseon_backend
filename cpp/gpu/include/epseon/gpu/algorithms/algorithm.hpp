@@ -16,8 +16,11 @@ namespace epseon {
                     "FP must be an floating-point type."
                 );
 
-              public:
-                virtual void run(std::stop_token, std::shared_ptr<TaskHandle<FP>>) = 0;
+              public: /* Public destructor. */
+                virtual ~Algorithm() {}
+
+              public: /* Public methods. */
+                virtual void run(std::stop_token, TaskHandle<FP>*) = 0;
             };
 
         } // namespace cpp

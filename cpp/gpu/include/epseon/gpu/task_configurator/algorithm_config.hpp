@@ -41,6 +41,7 @@ namespace epseon {
                 virtual ~AlgorithmConfig() = default;
 
               public: /* Public methods. */
+                virtual bool equals(const AlgorithmConfig<FP>& other) const       = 0;
                 virtual std::shared_ptr<Algorithm<FP>> getImplementation() const  = 0;
                 virtual std::shared_ptr<AlgorithmConfig<FP>> shared_clone() const = 0;
                 virtual std::unique_ptr<AlgorithmConfig<FP>> unique_clone() const = 0;
@@ -51,22 +52,22 @@ namespace epseon {
 
             template <typename FP>
             class VibwaAlgorithmConfig : public AlgorithmConfig<FP> {
-              private:
-                FP       mass_atom_0               = {};
-                FP       mass_atom_1               = {};
-                FP       integration_step          = {};
-                FP       min_distance_to_asymptote = {};
-                uint32_t min_level                 = {};
-                uint32_t max_level                 = {};
+              private: /* Private members. */
+                FP       mass_atom_0               = 0;
+                FP       mass_atom_1               = 0;
+                FP       integration_step          = 0;
+                FP       min_distance_to_asymptote = 0;
+                uint32_t min_level                 = 0;
+                uint32_t max_level                 = 0;
 
               public: /* Public constructors. */
                 VibwaAlgorithmConfig(
-                    FP       mass_atom_0_               = {},
-                    FP       mass_atom_1_               = {},
-                    FP       integration_step_          = {},
-                    FP       min_distance_to_asymptote_ = {},
-                    uint32_t min_level_                 = {},
-                    uint32_t max_level_                 = {}
+                    FP       mass_atom_0_,
+                    FP       mass_atom_1_,
+                    FP       integration_step_,
+                    FP       min_distance_to_asymptote_,
+                    uint32_t min_level_,
+                    uint32_t max_level_
                 ) :
                     mass_atom_0(mass_atom_0_),
                     mass_atom_1(mass_atom_1_),
@@ -76,7 +77,7 @@ namespace epseon {
                     max_level(max_level_) {}
 
                 // Default constructor.
-                VibwaAlgorithmConfig() = default;
+                VibwaAlgorithmConfig() noexcept = default;
 
                 // Copy constructor.
                 VibwaAlgorithmConfig(const VibwaAlgorithmConfig&) noexcept = default;
@@ -97,6 +98,23 @@ namespace epseon {
                 virtual ~VibwaAlgorithmConfig() = default;
 
               public: /* Public methods. */
+                virtual bool equals(const AlgorithmConfig<FP>& other) const override {
+                    const auto* otherCasted =
+                        dynamic_cast<const VibwaAlgorithmConfig<FP>*>(&other);
+                    if (otherCasted) {
+                        return (
+                            (this->mass_atom_0 == otherCasted->mass_atom_0) &&
+                            (this->mass_atom_1 == otherCasted->mass_atom_1) &&
+                            (this->integration_step == otherCasted->integration_step) &&
+                            (this->min_distance_to_asymptote ==
+                             otherCasted->min_distance_to_asymptote) &&
+                            (this->min_level == otherCasted->min_level) &&
+                            (this->max_level == otherCasted->max_level)
+                        );
+                    }
+                    return false;
+                }
+
                 virtual std::shared_ptr<Algorithm<FP>>
                 getImplementation() const override {
                     return std::dynamic_pointer_cast<Algorithm<FP>>(
@@ -113,7 +131,45 @@ namespace epseon {
                 unique_clone() const override {
                     return std::make_unique<VibwaAlgorithmConfig<FP>>(*this);
                 }
+
+              public: /* Public getters for members. */
+                FP getMassAtom0() const {
+                    return mass_atom_0;
+                }
+
+                FP getMassAtom1() const {
+                    return mass_atom_1;
+                }
+
+                FP getIntegrationStep() const {
+                    return integration_step;
+                }
+
+                FP getMinDistanceToAsymptote() const {
+                    return min_distance_to_asymptote;
+                }
+
+                uint32_t getMinLevel() const {
+                    return min_level;
+                }
+
+                uint32_t getMaxLevel() const {
+                    return max_level;
+                }
             };
+
+            template <typename FP>
+            bool
+            operator==(const AlgorithmConfig<FP>& lhs, const AlgorithmConfig<FP>& rhs) {
+                return lhs.equals(rhs);
+            }
+
+            template <typename FP>
+            bool operator==(
+                const VibwaAlgorithmConfig<FP>& lhs, const VibwaAlgorithmConfig<FP>& rhs
+            ) {
+                return lhs.equals(rhs);
+            }
         } // namespace cpp
     }     // namespace gpu
 } // namespace epseon

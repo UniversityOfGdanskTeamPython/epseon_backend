@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+from contextlib import suppress
 from typing import TYPE_CHECKING, Literal
 
 import pytest
@@ -16,6 +17,22 @@ if TYPE_CHECKING:
     )
 
 COMPUTE_GROUP_AXES_COUNT = 3
+
+
+def run_per_device_id() -> pytest.MarkDecorator:
+    """Create pytest.mark.parametrize which creates one case per device."""
+    device_ids: list[int] = []
+
+    with suppress(Exception):
+        from epseon_backend.device.gpu._libepseon_gpu import EpseonComputeContext
+
+        ctx = EpseonComputeContext.create()
+        device_ids = [
+            device_info.device_properties.device_id
+            for device_info in ctx.get_physical_device_info()
+        ]
+
+    return pytest.mark.parametrize("device_id", device_ids)
 
 
 class TestEpseonComputeContext:
@@ -297,23 +314,25 @@ class TestEpseonComputeContext:
 
         handle = interface.submit_task(cfg)
         assert isinstance(handle.get_status_message(), str)
+        handle.wait()
 
-    def test_submit_and_wait(self) -> None:
+    @run_per_device_id()
+    def test_submit_and_wait(self, device_id: int) -> None:
         """Submit task and wait for it to finish."""
-        handle = self._submit_task("float32")
+        handle = self._submit_task("float32", device_id=device_id)
         handle.wait()
         assert handle.is_done()
 
     def _submit_task(
         self,
         precision: Literal["float32", "float64"],
+        device_id: int = 0,
     ) -> TaskHandle:
         from epseon_backend.device.gpu._libepseon_gpu import EpseonComputeContext
 
         ctx = EpseonComputeContext.create()
 
-        device_info = next(iter(ctx.get_physical_device_info()))
-        interface = ctx.get_device_interface(device_info.device_properties.device_id)
+        interface = ctx.get_device_interface(device_id)
         configurator = interface.get_task_configurator(precision)
         cfg = self._configure_task(configurator)
 

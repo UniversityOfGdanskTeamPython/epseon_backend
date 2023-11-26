@@ -44,9 +44,14 @@ namespace epseon {
         namespace python {
             template <typename FP>
             class TaskHandle;
+
             class ComputeDeviceInterface;
+
             class MorsePotentialConfig;
+
+            template <typename FP>
             class TaskConfigurator;
+
             class EpseonComputeContext;
         } // namespace python
     }     // namespace gpu

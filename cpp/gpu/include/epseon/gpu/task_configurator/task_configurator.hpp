@@ -29,12 +29,34 @@ namespace epseon {
                 std::shared_ptr<AlgorithmConfig<FP>> algorithm_config = {};
 
               public: /* Public constructors. */
+                // Parametrized constructor
+                TaskConfigurator(
+                    std::shared_ptr<HardwareConfig<FP>>  hardware_config_,
+                    std::shared_ptr<PotentialSource<FP>> potential_source_,
+                    std::shared_ptr<AlgorithmConfig<FP>> algorithm_config_
+
+                ) :
+                    hardware_config(hardware_config_),
+                    potential_source(potential_source_),
+                    algorithm_config(algorithm_config_){};
+
                 // Default constructor
-                TaskConfigurator()                                       = default;
+                TaskConfigurator() = default;
                 // Move constructor
-                TaskConfigurator(TaskConfigurator&&) noexcept            = default;
+                TaskConfigurator(TaskConfigurator&& other) noexcept :
+                    hardware_config(std::move(other.hardware_config)),
+                    potential_source(std::move(other.potential_source)),
+                    algorithm_config(std::move(other.algorithm_config)){};
+
                 // Move assignment operator
-                TaskConfigurator& operator=(TaskConfigurator&&) noexcept = default;
+                TaskConfigurator& operator=(TaskConfigurator&& other) noexcept {
+                    if (this != &other) {
+                        hardware_config  = std::move(other.hardware_config);
+                        potential_source = std::move(other.potential_source);
+                        algorithm_config = std::move(other.algorithm_config);
+                    }
+                    return *this;
+                };
 
                 // Copy constructor (deleted)
                 TaskConfigurator(const TaskConfigurator& other) :
@@ -74,9 +96,9 @@ namespace epseon {
                 }
 
               public: /* Public destructor. */
-                // Destructor
-                ~TaskConfigurator() = default;
+                ~TaskConfigurator() {}
 
+              public: /* Public methods. */
                 /* Set hardware configuration for a GPU compute task. */
                 TaskConfigurator&
                 setHardwareConfig(std::shared_ptr<HardwareConfig<FP>> cfg) {

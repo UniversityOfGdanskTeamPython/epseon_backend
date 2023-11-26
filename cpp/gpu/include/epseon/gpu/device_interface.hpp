@@ -3,7 +3,6 @@
 #include "epseon/gpu/predecl.hpp"
 
 #include "epseon/gpu/compute_context.hpp"
-#include "epseon/gpu/enums.hpp"
 #include "epseon/gpu/task_configurator/task_configurator.hpp"
 #include "epseon/gpu/task_handle.hpp"
 #include "fmt/format.h"
@@ -38,20 +37,27 @@ namespace epseon {
 
             class ComputeDeviceInterface
                 : public std::enable_shared_from_this<ComputeDeviceInterface> {
-              private:
-                std::shared_ptr<ComputeContextState> computeContextState;
-                vk::raii::PhysicalDevice             physicalDevice;
+              private: /* Private members. */
+                std::shared_ptr<ComputeContextState>      computeContextState;
+                std::shared_ptr<vk::raii::PhysicalDevice> physicalDevice;
 
-              public:
-                ComputeDeviceInterface(
-                    std::shared_ptr<ComputeContextState>, vk::raii::PhysicalDevice
-                );
+              public: /* Public constructors. */
+                ComputeDeviceInterface(std::shared_ptr<ComputeContextState>, std::shared_ptr<vk::raii::PhysicalDevice>);
 
-                std::shared_ptr<TaskConfiguratorVariant>
-                getTaskConfigurator(PrecisionType prec);
+              public: /* Public destructor. */
+                ~ComputeDeviceInterface() {}
+
+              public: /* Public methods. */
+                template <typename FP>
+                std::shared_ptr<TaskConfigurator<FP>> getTaskConfigurator() {
+                    return std::make_shared<TaskConfigurator<FP>>();
+                }
+
+                std::shared_ptr<vk::raii::PhysicalDevice> getPhysicalDevice();
 
                 template <typename FP>
-                std::shared_ptr<TaskHandle<FP>>
+                // Namespaces specified explicitly to avoid confusion.
+                std::shared_ptr<epseon::gpu::cpp::TaskHandle<FP>>
                 submitTask(std::shared_ptr<TaskConfigurator<FP>> task_config) {
                     if (!task_config->isConfigured()) {
                         throw std::runtime_error(

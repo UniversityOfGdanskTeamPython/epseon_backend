@@ -7,7 +7,10 @@
 #include "spdlog/fmt/bundled/core.h"
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <unistd.h>
+#include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
 namespace epseon {
     namespace gpu {
@@ -20,26 +23,53 @@ namespace epseon {
                     "FP must be an floating-point type."
                 );
 
-              public:
+              public: /* Public constructors. */
                 VibwaAlgorithm() :
                     Algorithm<FP>() {}
 
-                virtual void
-                run(std::stop_token                 stop_token,
-                    std::shared_ptr<TaskHandle<FP>> handle) {
-                    std::cout << "Running" << std::endl;
+              public: /* Public destructor. */
+                virtual ~VibwaAlgorithm() {}
 
-                    uint32_t acc = 0;
-                    for (uint32_t i = 0; i < 4; i++) {
-                        std::cout << fmt::format("Running +{}", acc) << std::endl;
+              public: /* Public methods. */
+                virtual void run(std::stop_token stop_token, TaskHandle<FP>* handle) {
+                    {
+                        if (stop_token.stop_requested()) {
+                            return;
+                        }
+                        auto physical_device_ptr = handle->device->getPhysicalDevice();
 
-                        if (stop_token.stop_requested())
-                            break;
+                        for (auto        i = 0;
+                             const auto& queue :
+                             physical_device_ptr->getQueueFamilyProperties()) {
+                            if (stop_token.stop_requested()) {
+                                return;
+                            }
+                            // clang-format off
+                            std::cout << fmt::format("queue_family_index #{}", i) << std::endl;
+                            std::cout << fmt::format("queueCount {}", queue.queueCount) << std::endl;
+                            std::cout << fmt::format("eCompute {}", bool(queue.queueFlags & vk::QueueFlagBits::eCompute)) << std::endl;
+                            std::cout << fmt::format("eGraphics {}", bool(queue.queueFlags & vk::QueueFlagBits::eGraphics)) << std::endl;
+                            std::cout << fmt::format("eProtected {}", bool(queue.queueFlags & vk::QueueFlagBits::eProtected)) << std::endl;
+                            std::cout << fmt::format("eSparseBinding {}", bool(queue.queueFlags & vk::QueueFlagBits::eSparseBinding)) << std::endl;
+                            std::cout << fmt::format("eTransfer {}", bool(queue.queueFlags & vk::QueueFlagBits::eTransfer)) << std::endl;
+                            std::cout << std::endl;
+                            // clang-format on
+                            i++;
+                        }
 
-                        sleep(1);
-                        acc += 10;
+                        // std::vector<vk::DeviceQueueCreateInfo> queue_create_info;
+                        // queue_create_info.emplace_back(
+                        //     vk::DeviceQueueCreateFlags{},
+                        //     queue_family_index,
+                        //     1,
+                        //     &queue_priority
+                        // );
+                        // auto queues =
+                        //     physicalDevice.createDevice(vk::DeviceCreateInfo());
+                        // auto logicalDevice =
+                        // physicalDevice->createDevice(vk::DeviceCreateInfo().set);
                     }
-                    handle->set_done_flag();
+                    std::cout << "Thread finished" << std::endl;
                 }
             };
 

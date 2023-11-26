@@ -1,36 +1,22 @@
 #include "epseon/gpu/device_interface.hpp"
+#include "epseon/gpu/task_configurator/task_configurator.hpp"
+#include <memory>
 #include <vulkan/vulkan_raii.hpp>
 
 namespace epseon {
     namespace gpu {
         namespace cpp {
             ComputeDeviceInterface::ComputeDeviceInterface(
-                std::shared_ptr<ComputeContextState> computeContextState_,
-                vk::raii::PhysicalDevice             physicalDevice_
+                std::shared_ptr<ComputeContextState>      computeContextState_,
+                std::shared_ptr<vk::raii::PhysicalDevice> physicalDevice_
             ) :
                 computeContextState(computeContextState_),
                 physicalDevice(physicalDevice_) {}
 
-            std::shared_ptr<TaskConfiguratorVariant>
-            ComputeDeviceInterface::getTaskConfigurator(PrecisionType prec) {
-                switch (prec) {
-                    case PrecisionType::Float32:
-                        return std::make_shared<cpp::TaskConfiguratorVariant>(
-                            cpp::TaskConfigurator<float>()
-                        );
-                    case PrecisionType::Float64:
-                        return std::make_shared<cpp::TaskConfiguratorVariant>(
-                            cpp::TaskConfigurator<double>()
-                        );
-                    default:
-                        throw std::runtime_error(fmt::format(
-                            "Unexpected PrecisionType enum value: {}",
-                            static_cast<int64_t>(prec)
-                        ));
-                }
+            std::shared_ptr<vk::raii::PhysicalDevice>
+            ComputeDeviceInterface::getPhysicalDevice() {
+                return this->physicalDevice;
             }
-
-            void submitTask() {}
         } // namespace cpp
     }     // namespace gpu
 } // namespace epseon

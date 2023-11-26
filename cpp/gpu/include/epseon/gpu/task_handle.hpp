@@ -9,6 +9,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <stop_token>
+#include <system_error>
 #include <thread>
 
 namespace epseon {
@@ -18,13 +19,11 @@ namespace epseon {
             template <typename FP>
             class TaskHandle : public std::enable_shared_from_this<TaskHandle<FP>> {
               private:
-                std::shared_ptr<ComputeDeviceInterface> device         = {};
-                std::shared_ptr<TaskConfigurator<FP>>   config         = {};
-                std::shared_ptr<std::jthread>           worker         = {};
-                // Lock for guarding writes to worker pointer.
-                // Currently this lock is not necessary as only one write to worker
-                // pointer happens
-                std::shared_ptr<std::atomic<bool>>      is_worker_done = {};
+                std::shared_ptr<ComputeDeviceInterface> device            = {};
+                std::shared_ptr<TaskConfigurator<FP>>   config            = {};
+                std::atomic<bool>                       is_worker_done    = false;
+                std::atomic<bool>                       is_worker_started = false;
+                std::jthread                            worker            = {};
 
               public: /* Public constructors. */
                 TaskHandle(
@@ -33,76 +32,127 @@ namespace epseon {
                 ) :
                     device(device_),
                     config(config_),
-                    worker(nullptr),
-                    is_worker_done(std::make_shared<std::atomic<bool>>(false)) {}
+                    is_worker_done(false),
+                    is_worker_started(false),
+                    worker() {
+                    /* We can't start worker in constructor as it takes a shared
+                     * pointer to this handle object, which will not be initialized
+                     * within constructor call. Therefore start_worker() must be
+                     * called afterwards.
+                     */
+                }
+
+                // Default constructor.
+                TaskHandle() = default;
+
+                // Copy constructor.
+                TaskHandle(const TaskHandle&) = default;
+
+                // Copy assignment operator.
+                TaskHandle& operator=(const TaskHandle&) = default;
+
+                // Move constructor.
+                TaskHandle(TaskHandle&&) noexcept = default;
+
+                // Move assignment operator.
+                TaskHandle& operator=(TaskHandle&&) noexcept = default;
+
+              public: /* Public destructor. */
+                ~TaskHandle() {}
 
               protected: /* Protected methods. */
-                void set_done_flag() {
+                void setDoneFlag() {
                     /* Release all previous writes. */
                     // Nothing that was before the store can be observed after the
                     // operation. Things which were done after can be observed before.
                     // Refer to: https://www.youtube.com/watch?v=ZQFzMfHIxng
                     // CppCon 2017: Fedor Pikus "C++ atomics, from basic to advanced.
                     // What do they really do?"
-                    this->is_worker_done->store(true, std::memory_order_release);
+                    this->is_worker_done.store(true, std::memory_order_release);
+                }
+
+                void setStartedFlag() {
+                    // See setDoneFlag for deeper explanation why
+                    // std::memory_order_release is used here.
+                    this->is_worker_started.store(true, std::memory_order_release);
+                }
+
+                void setNotDoneFlag() {
+                    // See setDoneFlag for deeper explanation why
+                    // std::memory_order_release is used here.
+                    this->is_worker_done.store(false, std::memory_order_release);
+                }
+
+                void setNotStartedFlag() {
+                    // See setDoneFlag for deeper explanation why
+                    // std::memory_order_release is used here.
+                    this->is_worker_started.store(false, std::memory_order_release);
                 }
 
                 friend VibwaAlgorithm<FP>;
 
               public: /* Public methods. */
-                void start_worker() {
-
-                    if (this->worker) {
+                /* Create and start underlying worker thread.*/
+                void startWorker() {
+                    if (this->isRunning()) {
                         throw std::runtime_error(
                             "One worker is already running, can't start another one."
                         );
                     }
-                    auto shared_this = this->shared_from_this();
-
-                    this->worker = std::make_shared<std::jthread>(
-                        [this, shared_this](std::stop_token stop_token) {
-                            this->run(stop_token, shared_this);
-                        }
-                    );
+                    this->setNotDoneFlag();
+                    this->setStartedFlag();
+                    this->worker = std::jthread(this->run, this);
                 }
 
-                void
-                run(std::stop_token                 stop_token,
-                    std::shared_ptr<TaskHandle<FP>> shared_this) {
-                    const auto config         = this->config->getAlgorithmConfig();
+                /* Code run withing worker thread. */
+                void static run(std::stop_token stop_token, TaskHandle<FP>* this_ptr) {
+                    const auto config         = this_ptr->config->getAlgorithmConfig();
                     const auto implementation = config->getImplementation();
-                    implementation->run(stop_token, shared_this);
+                    implementation->run(stop_token, this_ptr);
+                    this_ptr->setDoneFlag();
+                    this_ptr->setNotStartedFlag();
                 }
 
-                bool is_done() {
+                /* Check if underlying worker thread finished its work.
+                 * This doesn't check if thread even started, it will be false both if
+                 * it is currently running and if it was never started. Use is_running()
+                 * to clarify which of those is the case.
+                 */
+                bool isDone() const {
                     // Nothing that was after the load can move in front of it.
                     // Anything that was before can move after.
                     // Thus when paired whin store-release this should result in all
                     // reads after this load-acquire should see results of writes
                     // scheduled before store-release.
-                    return is_worker_done->load(std::memory_order_acquire);
+                    return is_worker_done.load(std::memory_order_acquire);
+                }
+
+                /* Check if underlying worker thread was ever started. */
+                bool isStarted() const {
+                    return is_worker_started.load(std::memory_order_acquire);
+                }
+
+                /* Check if underlying worker thread is currently running. */
+                bool isRunning() const {
+                    return isStarted() && !isDone();
                 }
 
                 bool cancel() {
-
                     // Theoretically worker thread can be a nullptr.
-                    if (this->worker) {
-                        return this->worker->request_stop();
+                    if (this->isRunning()) {
+                        // This will only request a stop, but it is up to worker to
+                        // check if stop was requested and whether to respond at all.
+                        return this->worker.request_stop();
                     }
-                    throw std::runtime_error(
-                        "Calling wait() on non-existent worker is not allowed."
-                    );
+                    return false;
                 }
 
                 void wait() {
-
                     // Theoretically worker thread can be a nullptr.
-                    if (this->worker) {
-                        return this->worker->join();
+                    if (this->isRunning()) {
+                        this->worker.join();
+                        return;
                     }
-                    throw std::runtime_error(
-                        "Calling wait() on non-existent worker is not allowed."
-                    );
                 }
             };
 

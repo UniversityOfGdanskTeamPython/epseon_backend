@@ -14,6 +14,7 @@
 #include <string>
 #include <unordered_map>
 #include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_raii.hpp>
 
 namespace epseon {
     namespace gpu {
@@ -80,9 +81,9 @@ namespace epseon {
 
                 auto applicationInfo = std::make_shared<vk::ApplicationInfo>();
                 applicationInfo->setApplicationVersion(version)
-                    .setPApplicationName("libepseon/gpu/")
+                    .setPApplicationName("libepseon_gpu")
                     .setEngineVersion(version)
-                    .setPEngineName("libepseon/gpu/")
+                    .setPEngineName("libepseon_gpu")
                     .setApiVersion(VK_API_VERSION_1_1);
 
                 std::vector<const char*> instanceExtensions{};
@@ -123,12 +124,17 @@ namespace epseon {
 
             std::shared_ptr<ComputeDeviceInterface>
             ComputeContext::getDeviceInterface(uint32_t deviceId) {
-                for (auto physicalDevice :
-                     this->state->instance->enumeratePhysicalDevices()) {
+                for (auto& physicalDevice :
+                     vk::raii::PhysicalDevices{this->state->getVkInstance()}) {
                     auto props = physicalDevice.getProperties();
+
                     if (props.deviceID == deviceId) {
+                        auto physicalDevicePtr =
+                            std::make_shared<vk::raii::PhysicalDevice>(
+                                std::move(physicalDevice)
+                            );
                         return std::make_shared<ComputeDeviceInterface>(
-                            this->state, physicalDevice
+                            this->state, physicalDevicePtr
                         );
                     }
                 }

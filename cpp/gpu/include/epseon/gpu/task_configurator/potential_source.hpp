@@ -40,6 +40,7 @@ namespace epseon {
                 virtual ~PotentialSource() = default;
 
               public: /* Public methods. */
+                virtual bool equals(const PotentialSource<FP>& other) const       = 0;
                 virtual std::vector<std::vector<FP>>         get_potential_data() = 0;
                 virtual std::shared_ptr<PotentialSource<FP>> shared_clone() const = 0;
                 virtual std::unique_ptr<PotentialSource<FP>> unique_clone() const = 0;
@@ -83,6 +84,15 @@ namespace epseon {
                 virtual ~PotentialFileLoader() = default;
 
               public: /* Public methods. */
+                virtual bool equals(const PotentialSource<FP>& other) const override {
+                    const auto* otherCasted =
+                        dynamic_cast<const PotentialFileLoader<FP>*>(&other);
+                    if (otherCasted) {
+                        return this->file_names == otherCasted->file_names;
+                    }
+                    return false;
+                }
+
                 virtual std::vector<std::vector<FP>> get_potential_data() override {
                     return {};
                 }
@@ -146,30 +156,40 @@ namespace epseon {
                 MorsePotentialConfig&
                 operator=(MorsePotentialConfig&&) noexcept = default;
 
+              public: /* Public destructor. */
+                // Virtual destructor.
+                virtual ~MorsePotentialConfig() = default;
+
               public: /* Public methods. */
-                template <typename FP_>
-                FP_ getDissociationEnergy() const {
-                    return static_cast<FP_>(this->dissociation_energy);
+                bool operator==(const MorsePotentialConfig<FP>& other) const {
+                    return (
+                        (this->dissociation_energy == other.dissociation_energy) &&
+                        (this->equilibrium_bond_distance ==
+                         other.equilibrium_bond_distance) &&
+                        (this->well_width == other.well_width) &&
+                        (this->min_r == other.min_r) && (this->max_r == other.max_r) &&
+                        (this->point_count == other.point_count)
+                    );
                 }
 
-                template <typename FP_>
-                FP_ getEquilibriumBondDistance() const {
-                    return static_cast<FP_>(this->equilibrium_bond_distance);
+                FP getDissociationEnergy() const {
+                    return this->dissociation_energy;
                 }
 
-                template <typename FP_>
-                FP_ getWellWidth() const {
-                    return static_cast<FP_>(this->well_width);
+                FP getEquilibriumBondDistance() const {
+                    return this->equilibrium_bond_distance;
                 }
 
-                template <typename FP_>
-                FP_ getMinR() const {
-                    return static_cast<FP_>(this->min_r);
+                FP getWellWidth() const {
+                    return this->well_width;
                 }
 
-                template <typename FP_>
-                FP_ getMaxR() const {
-                    return static_cast<FP_>(this->max_r);
+                FP getMinR() const {
+                    return this->min_r;
+                }
+
+                FP getMaxR() const {
+                    return this->max_r;
                 }
 
                 uint32_t getPointCount() const {
@@ -211,6 +231,15 @@ namespace epseon {
                 virtual ~MorsePotentialGenerator() = default;
 
               public: /* Public methods. */
+                virtual bool equals(const PotentialSource<FP>& other) const override {
+                    const auto* otherCasted =
+                        dynamic_cast<const MorsePotentialGenerator<FP>*>(&other);
+                    if (otherCasted) {
+                        return this->configurations == otherCasted->configurations;
+                    }
+                    return false;
+                }
+
                 virtual std::vector<std::vector<FP>> get_potential_data() override {
                     return {};
                 }
@@ -225,6 +254,28 @@ namespace epseon {
                     return std::make_unique<MorsePotentialGenerator<FP>>(*this);
                 }
             };
+
+            template <typename FP>
+            bool
+            operator==(const PotentialSource<FP>& lhs, const PotentialSource<FP>& rhs) {
+                return lhs.equals(rhs);
+            }
+
+            template <typename FP>
+            bool operator==(
+                const PotentialFileLoader<FP>& lhs, const PotentialFileLoader<FP>& rhs
+            ) {
+                return lhs.equals(rhs);
+            }
+
+            template <typename FP>
+            bool operator==(
+                const MorsePotentialGenerator<FP>& lhs,
+                const MorsePotentialGenerator<FP>& rhs
+            ) {
+                return lhs.equals(rhs);
+            }
+
         } // namespace cpp
     }     // namespace gpu
 } // namespace epseon

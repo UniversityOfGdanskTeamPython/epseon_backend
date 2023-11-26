@@ -1,4 +1,4 @@
-#include "epseon/gpu/python/api.hpp"
+
 
 #include "epseon/gpu/common.hpp"
 #include "epseon/gpu/compute_context.hpp"
@@ -26,6 +26,8 @@
 #include <utility>
 #include <variant>
 #include <vector>
+
+#include "epseon/gpu/python/api.hpp"
 
 namespace py = pybind11;
 
@@ -56,212 +58,14 @@ namespace epseon {
                 return this->configuration;
             }
 
-            TaskConfigurator::TaskConfigurator(
-                cpp::PrecisionType                            precision_,
-                std::shared_ptr<cpp::TaskConfiguratorVariant> configurator_
-            ) :
-                precision(precision_),
-                configurator(configurator_) {}
-
-            // Copy constructor
-            TaskConfigurator::TaskConfigurator(const TaskConfigurator& other) :
-                precision(other.precision),
-                configurator(other.configurator) {}
-
-            // Move constructor
-            TaskConfigurator::TaskConfigurator(TaskConfigurator&& other) noexcept :
-                precision(std::move(other.precision)),
-                configurator(std::move(other.configurator)) {}
-
-            // Copy assignment operator
-            TaskConfigurator& TaskConfigurator::operator=(const TaskConfigurator& other
-            ) {
-                if (this != &other) {
-                    precision    = other.precision;
-                    configurator = other.configurator;
-                }
-                return *this;
-            }
-
-            // Move assignment operator
-            TaskConfigurator& TaskConfigurator::operator=(TaskConfigurator&& other
-            ) noexcept {
-                if (this != &other) {
-                    precision    = std::move(other.precision);
-                    configurator = std::move(other.configurator);
-                }
-                return *this;
-            }
-
-            TaskConfigurator& TaskConfigurator::set_hardware_config(
-                uint32_t potential_buffer_size,
-                uint32_t group_size,
-                uint32_t allocation_block_size
-            ) {
-                auto helper = [potential_buffer_size,
-                               group_size,
-                               allocation_block_size,
-                               this]<typename T>(T val_) {
-                    auto& cfg =
-                        std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
-                    cfg.setHardwareConfig(std::make_shared<cpp::HardwareConfig<T>>(
-                        potential_buffer_size, group_size, allocation_block_size
-                    ));
-                };
-
-                PrecisionTypeAssertValueCount(2);
-                switch (this->precision) {
-                    case cpp::PrecisionType::Float32: {
-                        helper(float(1.0));
-                        break;
-                    }
-                    case cpp::PrecisionType::Float64: {
-                        helper(double(1.0));
-                        break;
-                    }
-                    default:
-                        throw py::value_error(fmt::format(
-                            "Invalid PrecisionType value {}", toString(this->precision)
-                        ));
-                }
-                return *this;
-            }
-
-            TaskConfigurator& TaskConfigurator::set_morse_potential(
-                const std::vector<MorsePotentialConfig>& configurations
-            ) {
-                auto helper = [&configurations, this]<typename T>(T val_) {
-                    auto& cfg =
-                        std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
-                    std::optional<uint32_t> point_count = std::nullopt;
-
-                    std::vector<cpp::MorsePotentialConfig<T>> configurations_cpp(
-                        configurations.size()
-                    );
-                    for (const auto& element : configurations) {
-                        auto current_element_point_count =
-                            element.getConfiguration().getPointCount();
-                        if (point_count.has_value() &&
-                            point_count.value() != current_element_point_count) {
-                            throw std::runtime_error(fmt::format(
-                                "All Morse potentials must have same point "
-                                "count, but previous ones had {} and current one has.",
-                                point_count.value(),
-                                current_element_point_count
-                            ));
-                        } else {
-                            point_count = {current_element_point_count};
-                        }
-                        configurations_cpp.emplace_back(
-                            element.getConfiguration().getDissociationEnergy<T>(),
-                            element.getConfiguration().getEquilibriumBondDistance<T>(),
-                            element.getConfiguration().getWellWidth<T>(),
-                            element.getConfiguration().getMinR<T>(),
-                            element.getConfiguration().getMaxR<T>(),
-                            current_element_point_count
-                        );
-                    }
-
-                    cfg.setPotentialSource(
-                        std::make_shared<cpp::MorsePotentialGenerator<T>>(
-                            std::move(configurations_cpp)
-                        )
-                    );
-                };
-
-                PrecisionTypeAssertValueCount(2);
-                switch (this->precision) {
-                    case cpp::PrecisionType::Float32: {
-                        helper(float(1.0));
-                        break;
-                    }
-                    case cpp::PrecisionType::Float64: {
-                        helper(double(1.0));
-                        break;
-                    }
-                    default:
-                        throw py::value_error(fmt::format(
-                            "Invalid PrecisionType value {}", toString(this->precision)
-                        ));
-                }
-                return *this;
-            }
-
-            TaskConfigurator& TaskConfigurator::set_vibwa_algorithm(
-                double   mass_atom_0,
-                double   mass_atom_1,
-                double   integration_step,
-                double   min_distance_to_asymptote,
-                uint32_t min_level,
-                uint32_t max_level
-            ) {
-                auto helper = [mass_atom_0,
-                               mass_atom_1,
-                               integration_step,
-                               min_distance_to_asymptote,
-                               min_level,
-                               max_level,
-                               this]<typename T>(T val_) {
-                    auto& cfg =
-                        std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
-                    cfg.setAlgorithmConfig(
-                        std::make_shared<cpp::VibwaAlgorithmConfig<T>>(
-                            static_cast<T>(mass_atom_0),
-                            static_cast<T>(mass_atom_1),
-                            static_cast<T>(integration_step),
-                            static_cast<T>(min_distance_to_asymptote),
-                            min_level,
-                            max_level
-                        )
-                    );
-                };
-
-                PrecisionTypeAssertValueCount(2);
-                switch (this->precision) {
-                    case cpp::PrecisionType::Float32: {
-                        helper(float(1.0));
-                        break;
-                    }
-                    case cpp::PrecisionType::Float64: {
-                        helper(double(1.0));
-                        break;
-                    }
-                    default:
-                        throw py::value_error(fmt::format(
-                            "Invalid PrecisionType value {}", toString(this->precision)
-                        ));
-                }
-                return *this;
-            }
-
-            bool TaskConfigurator::is_configured() const {
-                auto helper = [this]<typename T>(T val_) {
-                    auto& cfg =
-                        std::get<cpp::TaskConfigurator<T>>(*(this->configurator));
-                    return cfg.isConfigured();
-                };
-
-                PrecisionTypeAssertValueCount(2);
-                switch (this->precision) {
-                    case cpp::PrecisionType::Float32: {
-                        return helper(float(1.0));
-                    }
-                    case cpp::PrecisionType::Float64: {
-                        return helper(double(1.0));
-                    }
-                    default:
-                        throw py::value_error(fmt::format(
-                            "Invalid PrecisionType value {}", toString(this->precision)
-                        ));
-                }
-            }
+            // =========================================================================
 
             ComputeDeviceInterface::ComputeDeviceInterface(
                 std::shared_ptr<cpp::ComputeDeviceInterface> device_
             ) :
                 device(device_) {}
 
-            TaskConfigurator
+            TaskConfiguratorVariant
             ComputeDeviceInterface::get_task_configurator(const std::string precision) {
                 auto precision_enum_value = [&precision]() {
                     try {
@@ -274,53 +78,17 @@ namespace epseon {
                 PrecisionTypeAssertValueCount(2);
                 switch (precision_enum_value) {
                     case cpp::PrecisionType::Float32:
-                        return TaskConfigurator{
-                            precision_enum_value,
-                            device->getTaskConfigurator(precision_enum_value)
+                        return TaskConfigurator<float>{
+                            device->getTaskConfigurator<float>()
                         };
                     case cpp::PrecisionType::Float64:
-                        return TaskConfigurator{
-                            precision_enum_value,
-                            device->getTaskConfigurator(precision_enum_value)
+                        return TaskConfigurator<double>{
+                            device->getTaskConfigurator<double>()
                         };
                     default:
                         throw std::runtime_error("Unreachable.");
                 }
                 assert(false);
-            }
-
-            TaskHandleVariant
-            ComputeDeviceInterface::submit_task(const TaskConfigurator& task_config) {
-                if (!task_config.is_configured()) {
-                    throw std::runtime_error("TaskConfigurator submitted for execution "
-                                             "before fully configured.");
-                }
-                auto helper = [task_config,
-                               this]<typename T>(T val_) -> TaskHandleVariant {
-                    auto& config =
-                        std::get<cpp::TaskConfigurator<T>>(*(task_config.configurator));
-                    auto new_shared_config_clone =
-                        std::make_shared<cpp::TaskConfigurator<T>>(config);
-                    auto task_handle =
-                        this->device->submitTask(new_shared_config_clone);
-
-                    return {task_handle};
-                };
-
-                PrecisionTypeAssertValueCount(2);
-                switch (task_config.precision) {
-                    case cpp::PrecisionType::Float32: {
-                        return helper(float(1.0));
-                    }
-                    case cpp::PrecisionType::Float64: {
-                        return helper(double(1.0));
-                    }
-                    default:
-                        throw py::value_error(fmt::format(
-                            "Invalid PrecisionType value {}",
-                            toString(task_config.precision)
-                        ));
-                }
             }
 
             EpseonComputeContext::EpseonComputeContext(
@@ -635,10 +403,10 @@ namespace epseon {
                     .doc() = "Configuration of single Morse potential curve.";
 
                 /* Python API - Wrapper class around TaskConfigurator class. */
-                py::class_<TaskConfigurator>(m, "TaskConfigurator")
+                py::class_<TaskConfiguratorFloat32>(m, "TaskConfiguratorFloat32")
                     .def(
                         "set_hardware_config",
-                        &TaskConfigurator::set_hardware_config,
+                        &TaskConfiguratorFloat32::set_hardware_config,
                         py::arg("potential_buffer_size"),
                         py::arg("group_size"),
                         py::arg("allocation_block_size"),
@@ -646,14 +414,14 @@ namespace epseon {
                     )
                     .def(
                         "set_morse_potential",
-                        &TaskConfigurator::set_morse_potential,
+                        &TaskConfiguratorFloat32::set_morse_potential,
                         py::arg("configurations"),
                         "Set potential data source configuration for GPU compute "
                         "task."
                     )
                     .def(
                         "set_vibwa_algorithm",
-                        &TaskConfigurator::set_vibwa_algorithm,
+                        &TaskConfiguratorFloat32::set_vibwa_algorithm,
                         py::arg("mass_atom_0"),
                         py::arg("mass_atom_1"),
                         py::arg("integration_step"),
@@ -664,7 +432,46 @@ namespace epseon {
                     )
                     .def(
                         "is_configured",
-                        &TaskConfigurator::is_configured,
+                        &TaskConfiguratorFloat32::is_configured,
+                        "Check if this instance is fully configured, i.e. it has "
+                        "been "
+                        "assigned a valid hardware configuration, potential source "
+                        "and "
+                        "algorithm config."
+                    )
+                    .doc() = "Builder for configuring GPU compute task.";
+
+                /* Python API - Wrapper class around TaskConfigurator class. */
+                py::class_<TaskConfiguratorFloat64>(m, "TaskConfiguratorFloat64")
+                    .def(
+                        "set_hardware_config",
+                        &TaskConfiguratorFloat64::set_hardware_config,
+                        py::arg("potential_buffer_size"),
+                        py::arg("group_size"),
+                        py::arg("allocation_block_size"),
+                        "Set hardware configuration for a GPU compute task."
+                    )
+                    .def(
+                        "set_morse_potential",
+                        &TaskConfiguratorFloat64::set_morse_potential,
+                        py::arg("configurations"),
+                        "Set potential data source configuration for GPU compute "
+                        "task."
+                    )
+                    .def(
+                        "set_vibwa_algorithm",
+                        &TaskConfiguratorFloat64::set_vibwa_algorithm,
+                        py::arg("mass_atom_0"),
+                        py::arg("mass_atom_1"),
+                        py::arg("integration_step"),
+                        py::arg("min_distance_to_asymptote"),
+                        py::arg("min_level"),
+                        py::arg("max_level"),
+                        "Set algorithm configuration for a GPU compute task."
+                    )
+                    .def(
+                        "is_configured",
+                        &TaskConfiguratorFloat64::is_configured,
                         "Check if this instance is fully configured, i.e. it has "
                         "been "
                         "assigned a valid hardware configuration, potential source "
@@ -682,7 +489,13 @@ namespace epseon {
                     )
                     .def(
                         "submit_task",
-                        &ComputeDeviceInterface::submit_task,
+                        &ComputeDeviceInterface::submit_task<float>,
+                        "Submit task for execution. Will raise RuntimeError upon "
+                        "receiving not fully configured TaskConfigurator."
+                    )
+                    .def(
+                        "submit_task",
+                        &ComputeDeviceInterface::submit_task<double>,
                         "Submit task for execution. Will raise RuntimeError upon "
                         "receiving not fully configured TaskConfigurator."
                     )
