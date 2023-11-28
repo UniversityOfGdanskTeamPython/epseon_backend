@@ -1,17 +1,20 @@
 
-#include "epseon_gpu/compute_context.hpp"
-#include "epseon_gpu/common.hpp"
-#include "epseon_gpu/device_interface.hpp"
+#include "epseon/gpu/compute_context.hpp"
+#include "epseon/gpu/common.hpp"
+#include "epseon/gpu/device_interface.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/spdlog.h"
 #include "vulkan/vulkan_structs.hpp"
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_raii.hpp>
 
 namespace epseon {
     namespace gpu {
@@ -48,7 +51,7 @@ namespace epseon {
                 auto logger = spdlog::get("_libepseon_gpu");
                 if (!logger) {
                     logger = spdlog::basic_logger_mt(
-                        "_libepseon_gpu", "./log/libepseon_gpu/log.txt"
+                        "_libepseon_gpu", "./log/epseon/gpu/log.txt"
                     );
                 }
 
@@ -121,12 +124,17 @@ namespace epseon {
 
             std::shared_ptr<ComputeDeviceInterface>
             ComputeContext::getDeviceInterface(uint32_t deviceId) {
-                for (auto physicalDevice :
-                     this->state->instance->enumeratePhysicalDevices()) {
+                for (auto& physicalDevice :
+                     vk::raii::PhysicalDevices{this->state->getVkInstance()}) {
                     auto props = physicalDevice.getProperties();
+
                     if (props.deviceID == deviceId) {
+                        auto physicalDevicePtr =
+                            std::make_shared<vk::raii::PhysicalDevice>(
+                                std::move(physicalDevice)
+                            );
                         return std::make_shared<ComputeDeviceInterface>(
-                            this->state, physicalDevice
+                            this->state, physicalDevicePtr
                         );
                     }
                 }

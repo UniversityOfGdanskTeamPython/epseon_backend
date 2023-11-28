@@ -78,8 +78,93 @@ class PhysicalDeviceInfo(Protocol):
     device_properties: PhysicalDeviceProperties
     memory_properties: PhysicalDeviceMemoryProperties
 
+class TaskConfigurator:
+    """Builder for GPU compute task."""
+
+    def set_hardware_config(
+        self,
+        potential_buffer_size: int,
+        group_size: int,
+        allocation_block_size: int,
+    ) -> _PartialConfig1:
+        """Set hardware configuration for GPU compute task."""
+
+class MorsePotentialConfig:
+    """Configuration of single Morse potential curve."""
+
+    def __init__(  # noqa: PLR0913
+        self,
+        dissociation_energy: float,
+        equilibrium_bond_distance: float,
+        well_width: float,
+        min_r: float,
+        max_r: float,
+        point_count: int,
+    ) -> None:
+        """Create instance of MorsePotentialConfig class."""
+
+class _PartialConfig1:
+    """Partially finished configuration on stage 1.
+
+    Includes configuration for hardware.
+    """
+
+    def set_morse_potential(
+        self,
+        __configs: list[MorsePotentialConfig],
+    ) -> _PartialConfig2:
+        """Set potential data source configuration.
+
+        Raises
+        ------
+        RuntimeError when MorsePotentialConfigs with different point counts are used.
+        """
+
+class _PartialConfig2:
+    """Partially finished configuration on stage 2.
+
+    Includes configuration for hardware and for potential source.
+    """
+
+    def set_vibwa_algorithm(  # noqa: PLR0913
+        self,
+        mass_atom_0: float,
+        mass_atom_1: float,
+        integration_step: float,
+        min_distance_to_asymptote: float,
+        min_level: int,
+        max_level: int,
+    ) -> TaskConfig:
+        """Set task algorithm configuration."""
+
+class TaskConfig:
+    """Finalized task configuration object."""
+
+class TaskHandle:
+    """Handle object for referencing GPU compute task."""
+
+    def get_status_message(self) -> str:
+        """Get task status message."""
+    def is_done(self) -> bool:
+        """Check if task has finished."""
+    def wait(self) -> None:
+        """Wait for task to finish."""
+
 class ComputeDeviceInterface:
-    """Interface to particular Vulkan device."""
+    """Interface to particular Vulkan device.
+
+    ComputeDeviceInterface doesn't guard against submitting multiple tasks at a time,
+    but doing so might result in undefined behavior in form of race conditions and
+    memory occupancy problems, as it is not prepared for handling such case.
+    """
+
+    def get_task_configurator(
+        self,
+        __precision: Literal["float32", "float64"],
+    ) -> TaskConfigurator:
+        """Get new task configurator instance."""
+    def submit_task(self, __config: TaskConfig) -> TaskHandle:
+        """Submit task for execution."""
 
 class EpseonComputeContext(Protocol):
     """Interface to computations on GPU with Vulkan."""

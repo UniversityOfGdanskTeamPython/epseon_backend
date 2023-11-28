@@ -1,4 +1,4 @@
-#include "epseon_gpu/common.hpp"
+#include "epseon/gpu/common.hpp"
 #include "vulkan/vulkan_raii.hpp"
 #include <sstream>
 

@@ -5,7 +5,7 @@ project(
     LANGUAGES CXX
 )
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -89,18 +89,21 @@ else()
     )
 endif()
 
-file(GLOB_RECURSE TEST_SOURCES "${PROJECT_SOURCE_DIR}/test/*.cpp")
 
-# Define the test executable
-add_executable(epseon_gpu_tests ${TEST_SOURCES})
-target_link_libraries(epseon_gpu_tests
-    PRIVATE gtest_main
-    PRIVATE epseon_gpu
-    ${epseon_gpu_LINK_LIBS}
-)
-target_include_directories(epseon_gpu_tests
-    PRIVATE ${epseon_gpu_INCLUDE}
-)
-
-# Add the tests to the GoogleTest framework
-gtest_discover_tests(epseon_gpu_tests)
+file(GLOB_RECURSE files "${PROJECT_SOURCE_DIR}/test/*.cpp")
+foreach(file ${files})
+    get_filename_component(TEST_NAME ${file} NAME_WLE)
+    add_executable(
+        ${TEST_NAME}
+        ${file}
+    )
+    target_link_libraries( ${TEST_NAME}
+        PRIVATE gtest_main
+        PRIVATE epseon_gpu
+        ${epseon_gpu_LINK_LIBS}
+    )
+    target_include_directories( ${TEST_NAME}
+        PRIVATE ${epseon_gpu_INCLUDE}
+    )
+    gtest_discover_tests(${TEST_NAME})
+endforeach()

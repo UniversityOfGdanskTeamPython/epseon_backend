@@ -117,6 +117,9 @@ run-unit-tests = [
     { cmd = "python -c 'import cmake;cmake.ctest()' --test-dir build --output-on-failure" },
     { cmd = "pytest --log-level=DEBUG -s -n logical --cov=epseon_backend --cov=python/test" },
 ]
+run-cpp-tests = [
+    { cmd = "python -c 'import cmake;cmake.ctest()' --test-dir build --output-on-failure" },
+]
 run-type-checks = [{ cmd = "mypy python/epseon_backend python/test/ scripts/" }]
 
 
