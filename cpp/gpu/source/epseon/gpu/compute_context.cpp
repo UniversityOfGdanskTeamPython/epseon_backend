@@ -4,7 +4,6 @@
 #include "epseon/gpu/device_interface.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/spdlog.h"
-#include "vulkan/vulkan_structs.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -13,8 +12,8 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_raii.hpp>
+
+#include "epseon/vulkan_headers.hpp"
 
 namespace epseon {
     namespace gpu {
@@ -90,8 +89,6 @@ namespace epseon {
 
                 auto instanceCreateInfo =
                     vk::InstanceCreateInfo()
-                        .setFlags({vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR}
-                        )
                         .setEnabledExtensionCount(instanceExtensions.size())
                         .setPEnabledExtensionNames(instanceExtensions)
                         .setPApplicationInfo(applicationInfo.get());

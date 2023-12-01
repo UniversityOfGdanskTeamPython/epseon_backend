@@ -68,6 +68,19 @@ namespace epseon {
                 virtual std::unique_ptr<HardwareConfig> unique_clone() const {
                     return std::make_unique<HardwareConfig>(*this);
                 }
+
+              public: /* Public getters. */
+                uint32_t getPotentialBufferSize() const {
+                    return this->potential_buffer_size;
+                }
+
+                uint32_t getGroupSize() const {
+                    return this->group_size;
+                }
+
+                uint32_t getAllocationBlockSize() const {
+                    return this->allocation_block_size;
+                }
             };
         } // namespace cpp
     }     // namespace gpu

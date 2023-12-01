@@ -2,6 +2,8 @@
 
 #include "epseon/gpu/predecl.hpp"
 
+#include "epseon/vulkan_headers.hpp"
+
 #include "epseon/gpu/compute_context.hpp"
 #include "epseon/gpu/task_configurator/task_configurator.hpp"
 #include "epseon/gpu/task_handle.hpp"
@@ -12,7 +14,6 @@
 #include <tuple>
 #include <variant>
 #include <vector>
-#include <vulkan/vulkan_raii.hpp>
 
 namespace epseon {
     namespace gpu {
@@ -20,20 +21,6 @@ namespace epseon {
 
             typedef std::variant<TaskConfigurator<float>, TaskConfigurator<double>>
                 TaskConfiguratorVariant;
-
-            struct BufferRequirements {
-              public:
-                uint64_t buffer_size_bytes = {};
-                uint32_t binding           = {};
-            };
-
-            struct ShaderMemoryRequirements {
-              public:
-                std::vector<BufferRequirements> buffers;
-
-              public:
-                uint64_t get_total_size_bytes() const;
-            };
 
             class ComputeDeviceInterface
                 : public std::enable_shared_from_this<ComputeDeviceInterface> {
@@ -68,6 +55,10 @@ namespace epseon {
                     return std::make_shared<TaskHandle<FP>>(
                         this->shared_from_this(), task_config
                     );
+                }
+
+                const ComputeContextState& getComputeContextState() const {
+                    return *this->computeContextState;
                 }
             };
         } // namespace cpp

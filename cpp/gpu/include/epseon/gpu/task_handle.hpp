@@ -154,6 +154,15 @@ namespace epseon {
                         return;
                     }
                 }
+
+              public: /* Public getters. */
+                const TaskConfigurator<FP>& getTaskConfigurator() const {
+                    return *this->config;
+                }
+
+                const ComputeDeviceInterface& getDeviceInterface() const {
+                    return *this->device;
+                }
             };
 
             template class TaskHandle<float>;

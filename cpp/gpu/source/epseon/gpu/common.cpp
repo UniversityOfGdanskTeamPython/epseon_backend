@@ -1,6 +1,7 @@
 #include "epseon/gpu/common.hpp"
-#include "vulkan/vulkan_raii.hpp"
 #include <sstream>
+
+#include "epseon/vulkan_headers.hpp"
 
 namespace epseon {
     namespace gpu {

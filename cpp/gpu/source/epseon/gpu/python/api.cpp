@@ -8,9 +8,7 @@
 #include "pybind11/detail/common.h"
 #include "pybind11/pytypes.h"
 #include "pybind11/stl.h"
-#include "vulkan/vulkan.hpp"
-#include "vulkan/vulkan_enums.hpp"
-#include "vulkan/vulkan_structs.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <cstddef>

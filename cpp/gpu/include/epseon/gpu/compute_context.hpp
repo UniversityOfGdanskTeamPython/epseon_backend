@@ -2,6 +2,8 @@
 
 #include "epseon/gpu/predecl.hpp"
 
+#include "epseon/vulkan_headers.hpp"
+
 #include "spdlog/logger.h"
 #include <cstdint>
 #include <iostream>
@@ -9,7 +11,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include <vulkan/vulkan_raii.hpp>
 
 namespace epseon {
     namespace gpu {

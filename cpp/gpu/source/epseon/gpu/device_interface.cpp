@@ -1,7 +1,8 @@
 #include "epseon/gpu/device_interface.hpp"
 #include "epseon/gpu/task_configurator/task_configurator.hpp"
 #include <memory>
-#include <vulkan/vulkan_raii.hpp>
+
+#include "epseon/vulkan_headers.hpp"
 
 namespace epseon {
     namespace gpu {
