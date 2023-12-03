@@ -2,6 +2,7 @@
 
 #include "epseon/gpu/predecl.hpp"
 
+#include "epseon/gpu/task_configurator/algorithm_config.hpp"
 #include "epseon/vulkan_headers.hpp"
 
 #include "epseon/gpu/algorithms/algorithm.hpp"
@@ -9,215 +10,399 @@
 #include "spdlog/fmt/bundled/core.h"
 #include "vk_mem_alloc_enums.hpp"
 #include "vk_mem_alloc_handles.hpp"
+#include "vk_mem_alloc_structs.hpp"
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <unistd.h>
+#include <utility>
 #include <vector>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
-namespace epseon {
-    namespace gpu {
-        namespace cpp {
+namespace epseon::gpu::cpp {
 
-            class Interrupted : public std::exception {};
+    class Interrupted : public std::exception {};
 
-#define CHECK_AND_THROW_IF_REQUESTED_STOP         \
-    if (this->stop_token_copy.stop_requested()) { \
-        throw Interrupted();                      \
+#define CHECK_AND_THROW_IF_REQUESTED_STOP \
+    if (stop_token.stop_requested()) {    \
+        throw Interrupted();              \
     }
 
-            template <typename FP>
-            class VibwaAlgorithm : public Algorithm<FP> {
-                static_assert(
-                    std::is_floating_point<FP>::value,
-                    "FP must be an floating-point type."
+    template <typename FP>
+    class VibwaAlgorithm : public Algorithm<FP> {
+        static_assert(std::is_floating_point<FP>::value, "FP must be an floating-point type.");
+
+      public: /* Public constructors. */
+        VibwaAlgorithm() :
+            Algorithm<FP>() {}
+
+      public: /* Public methods. */
+        struct ShaderResources {
+            std::vector<vk::Buffer>          stagingBuffers                 = {};
+            std::vector<vma::Allocation>     stagingBuffersAllocations      = {};
+            std::vector<vma::AllocationInfo> stagingBuffersAllocationsInfos = {};
+
+            std::vector<vk::Buffer>      gpuOnlyStorageBuffers            = {};
+            std::vector<vma::Allocation> gpuOnlyStorageBuffersAllocations = {};
+
+            std::vector<vk::Buffer>          outputBuffers                 = {};
+            std::vector<vma::Allocation>     outputBuffersAllocations      = {};
+            std::vector<vma::AllocationInfo> outputBuffersAllocationsInfos = {};
+
+            // Copy constructor
+            ShaderResources() = default;
+
+            // Copy constructor
+            ShaderResources(const ShaderResources&) = delete;
+
+            // Copy assignment operator
+            ShaderResources& operator=(const ShaderResources&) = delete;
+
+            ShaderResources(ShaderResources&& other) noexcept :
+                stagingBuffers(std::move(other.stagingBuffers)),
+                stagingBuffersAllocations(std::move(other.stagingBuffersAllocations)),
+                stagingBuffersAllocationsInfos(std::move(other.stagingBuffersAllocationsInfos)),
+
+                gpuOnlyStorageBuffers(std::move(other.gpuOnlyStorageBuffers)),
+                gpuOnlyStorageBuffersAllocations(std::move(other.gpuOnlyStorageBuffersAllocations)),
+                outputBuffers(std::move(other.outputBuffers)),
+
+                outputBuffersAllocations(std::move(other.outputBuffersAllocations)),
+                outputBuffersAllocationsInfos(std::move(other.outputBuffersAllocationsInfos)) {}
+
+            // Move assignment operator
+            ShaderResources& operator=(ShaderResources&& other) noexcept {
+                if (this != &other) {
+                    // Move resources
+                    stagingBuffers            = std::move(other.stagingBuffers);
+                    stagingBuffersAllocations = std::move(other.stagingBuffersAllocations);
+                    stagingBuffersAllocationsInfos =
+                        std::move(other.stagingBuffersAllocationsInfos);
+
+                    gpuOnlyStorageBuffers = std::move(other.gpuOnlyStorageBuffers);
+                    gpuOnlyStorageBuffersAllocations =
+                        std::move(other.gpuOnlyStorageBuffersAllocations);
+
+                    outputBuffers                 = std::move(other.outputBuffers);
+                    outputBuffersAllocations      = std::move(other.outputBuffersAllocations);
+                    outputBuffersAllocationsInfos = std::move(other.outputBuffersAllocationsInfos);
+                }
+                return *this;
+            }
+
+            ~ShaderResources() = default;
+
+            static ShaderResources create(
+                const vma::Allocator& allocator, const ShaderBuffersRequirements<FP>& requirements
+            ) {
+                ShaderResources resources{};
+
+                resources.stagingBuffers.resize(requirements.stagingBuffersCount);
+                resources.stagingBuffersAllocations.resize(requirements.stagingBuffersCount);
+                resources.stagingBuffersAllocationsInfos.resize(requirements.stagingBuffersCount);
+
+                resources.gpuOnlyStorageBuffers.resize(requirements.gpuOnlyStorageBuffersCount);
+                resources.gpuOnlyStorageBuffersAllocations.resize(
+                    requirements.gpuOnlyStorageBuffersCount
                 );
 
-              private: /* Private members. */
-                std::stop_token stop_token_copy;
+                resources.outputBuffers.resize(requirements.outputBuffersCount);
+                resources.outputBuffersAllocations.resize(requirements.outputBuffersCount);
+                resources.outputBuffersAllocationsInfos.resize(requirements.outputBuffersCount);
 
-              public: /* Public constructors. */
-                VibwaAlgorithm() :
-                    Algorithm<FP>() {}
+                /* Allocate staging buffers. */
+                for (uint32_t i = 0; i < requirements.stagingBuffersCount; i++) {
+                    vma::AllocationInfo info{};
 
-              public: /* Public destructor. */
-                virtual ~VibwaAlgorithm() {}
-
-              public: /* Public methods. */
-                virtual void run(std::stop_token stop_token, TaskHandle<FP>* handle) {
-                    this->stop_token_copy = stop_token;
-                    CHECK_AND_THROW_IF_REQUESTED_STOP;
-
-                    auto physical_device_ptr = handle->device->getPhysicalDevice();
-                    auto logical_device      = createLogicalDevice(physical_device_ptr);
-                    const auto& compute_context_state =
-                        handle->getDeviceInterface().getComputeContextState();
-
-                    vma::Allocator memory_allocator = vma::createAllocator(
-                        vma::AllocatorCreateInfo()
-                            .setVulkanApiVersion(handle->getDeviceInterface()
-                                                     .getComputeContextState()
-                                                     .application_info->apiVersion)
-                            .setPhysicalDevice(*(*physical_device_ptr))
-                            .setDevice(*logical_device)
-                            .setInstance(*(*compute_context_state.instance))
-                    );
-                    size_t group_size =
-                        handle->getTaskConfigurator().getHardwareConfig()->getGroupSize(
-                        );
-
-                    size_t buffer_element_count = handle->getTaskConfigurator()
-                                                      .getHardwareConfig()
-                                                      ->getPotentialBufferSize();
-                    size_t buffer_size_bytes = buffer_element_count * sizeof(FP);
-
-                    auto allocationCreateInfo =
+                    auto [buffer, allocation] = allocator.createBuffer(
+                        vk::BufferCreateInfo()
+                            .setSize(requirements.getStagingBuffersSizeBytes())
+                            .setUsage(vk::BufferUsageFlagBits::eTransferSrc),
                         vma::AllocationCreateInfo()
                             .setUsage(vma::MemoryUsage::eAuto)
                             .setFlags(
-                                vma::AllocationCreateFlagBits::
-                                    eHostAccessSequentialWrite |
+                                vma::AllocationCreateFlagBits::eHostAccessSequentialWrite |
                                 vma::AllocationCreateFlagBits::eMapped
-                            );
+                            ),
+                        info
+                    );
 
-                    auto buffer = memory_allocator.createBuffer(
+                    resources.stagingBuffers.push_back(buffer);
+                    resources.stagingBuffersAllocations.push_back(allocation);
+                    resources.stagingBuffersAllocationsInfos.push_back(info);
+                }
+                /* Allocate GPU only buffers. */
+                for (uint32_t i = 0; i < requirements.gpuOnlyStorageBuffersCount; i++) {
+                    auto [buffer, allocation] = allocator.createBuffer(
                         vk::BufferCreateInfo()
-                            .setSize(buffer_size_bytes)
-                            .setUsage(vk::BufferUsageFlagBits::eTransferSrc),
-                        allocationCreateInfo
+                            .setSize(requirements.getGpuOnlyStorageBufferSizeBytes())
+                            .setUsage(
+                                vk::BufferUsageFlagBits::eTransferDst |
+                                vk::BufferUsageFlagBits::eStorageBuffer
+                            ),
+                        vma::AllocationCreateInfo()
+                            .setUsage(vma::MemoryUsage::eAuto)
+                            .setFlags(vma::AllocationCreateFlagBits::eDedicatedMemory)
                     );
 
-                    /*
-                    size_t allocation_block_size = handle->getTaskConfigurator()
-                                                       .getHardwareConfig()
-                                                       ->getAllocationBlockSize();
-
-                    // auto buffer = logical_device.createBuffer(
-                    //     vk::BufferCreateInfo()
-                    //         .setSize(buffer_size_bytes)
-                    //         .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
-                    // );
-                    // buffer.bindMemory();
-                    // auto requirements =
-                    //     logical_device.getBufferMemoryRequirements(buffer);
-                    //  requirements.
-
-                    auto descriptor_sets =
-                        allocateDescriptorSets(logical_device, group_size, 0);
-
-                    std::vector<vk::DescriptorBufferInfo> buffer_info{group_size};
-                    std::vector<vk::WriteDescriptorSet>   write_descriptor_sets{
-                        group_size};
-
-                    for (uint32_t i = 0; i < group_size; i++)
-                    {
-                        buffer_info[i].setOffset(0).setRange(VK_WHOLE_SIZE);
-                        write_descriptor_sets[i]
-                            .setDstSet(*descriptor_sets[0])
-                            .setDstBinding(0)
-                            .setDstArrayElement(i)
-                            .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-                            .setDescriptorCount(1)
-                            .setBufferInfo(buffer_info);
-                    } */
-
-                    std::cout << "Thread finished" << std::endl;
+                    resources.gpuOnlyStorageBuffers.push_back(buffer);
+                    resources.gpuOnlyStorageBuffersAllocations.push_back(allocation);
                 }
+                /* Allocate output (read back) buffers. */
+                for (uint32_t i = 0; i < requirements.outputBuffersCount; i++) {
+                    vma::AllocationInfo info{};
 
-                uint32_t selectQueueFamilyIndex(
-                    std::shared_ptr<vk::raii::PhysicalDevice> physical_device_ptr
-                ) {
-                    uint32_t queue_family_index = -1;
-
-                    for (auto i = 0; const auto& queue :
-                                     physical_device_ptr->getQueueFamilyProperties()) {
-                        CHECK_AND_THROW_IF_REQUESTED_STOP;
-
-                        if ((queue.queueFlags & vk::QueueFlagBits::eCompute) &&
-                            (queue.queueFlags & vk::QueueFlagBits::eTransfer)) {
-                            queue_family_index = i;
-                            break;
-                        }
-                        i++;
-                    }
-
-                    assert(queue_family_index != -1);
-                    return queue_family_index;
-                }
-
-                vk::raii::Device createLogicalDevice(
-                    std::shared_ptr<vk::raii::PhysicalDevice> physical_device_ptr
-                ) {
-                    // Exclusive transfer Queue in some GPUs, we may use it in
-                    // future.
-                    uint32_t queue_index = selectQueueFamilyIndex(physical_device_ptr);
-                    std::array<float, 1>                   queue_priorities = {1.0f};
-                    std::vector<vk::DeviceQueueCreateInfo> queue_create_infos{
-                        vk::DeviceQueueCreateInfo()
-                            .setQueueFamilyIndex(queue_index)
-                            .setQueueCount(1)
-                            .setPQueuePriorities(queue_priorities.data())
-                    };
-
-                    std::vector<const char*> required_device_extensions{};
-
-                    auto logical_device = physical_device_ptr->createDevice(
-                        vk::DeviceCreateInfo()
-                            .setQueueCreateInfos(queue_create_infos)
-                            .setPEnabledExtensionNames(required_device_extensions)
-                    );
-                    return std::move(logical_device);
-                }
-
-                std::vector<vk::raii::DescriptorSet> allocateDescriptorSets(
-                    vk::raii::Device& logical_device,
-                    uint32_t          descriptorCount,
-                    uint32_t          binding
-                ) {
-
-                    constexpr uint32_t descriptor_set_count = 0;
-
-                    std::array<vk::DescriptorSetLayoutBinding, 1>
-                        descriptor_set_layout_bindings{
-                            vk::DescriptorSetLayoutBinding()
-                                .setBinding(0)
-                                .setDescriptorCount(descriptorCount)
-                                .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-                                .setStageFlags({vk::ShaderStageFlagBits::eCompute})
-                        };
-                    auto descriptor_set_layout =
-                        logical_device.createDescriptorSetLayout(
-                            vk::DescriptorSetLayoutCreateInfo().setBindings(
-                                descriptor_set_layout_bindings
-                            )
-                        );
-
-                    std::array<vk::DescriptorPoolSize, 1> descriptor_pool_sizes{
-                        vk::DescriptorPoolSize()
-                            .setDescriptorCount(descriptorCount)
-                            .setType(vk::DescriptorType::eStorageBuffer)
-                    };
-                    auto descriptor_pool = logical_device.createDescriptorPool(
-                        vk::DescriptorPoolCreateInfo()
-                            .setPoolSizes(descriptor_pool_sizes)
-                            .setMaxSets(descriptor_set_count)
+                    auto [buffer, allocation] = allocator.createBuffer(
+                        vk::BufferCreateInfo()
+                            .setSize(requirements.getOutputBufferSizeBytes())
+                            .setUsage(vk::BufferUsageFlagBits::eStorageBuffer),
+                        vma::AllocationCreateInfo()
+                            .setUsage(vma::MemoryUsage::eAuto)
+                            .setFlags(
+                                vma::AllocationCreateFlagBits::eHostAccessRandom |
+                                vma::AllocationCreateFlagBits::eMapped
+                            ),
+                        info
                     );
 
-                    auto descriptor_sets = logical_device.allocateDescriptorSets(
-                        vk::DescriptorSetAllocateInfo()
-                            .setDescriptorPool(*descriptor_pool)
-                            .setSetLayouts(*descriptor_set_layout)
-                            .setDescriptorSetCount(descriptor_set_count)
-                    );
-                    return std::move(descriptor_sets);
+                    resources.outputBuffers.push_back(buffer);
+                    resources.outputBuffersAllocations.push_back(allocation);
+                    resources.outputBuffersAllocationsInfos.push_back(info);
                 }
+
+                return resources;
+            }
+
+            void destroy(const vma::Allocator& allocator) {
+                destroy(allocator, stagingBuffers, stagingBuffersAllocations);
+                destroy(allocator, gpuOnlyStorageBuffers, gpuOnlyStorageBuffersAllocations);
+                destroy(allocator, outputBuffers, outputBuffersAllocations);
+            }
+
+            template <typename BufferT, typename AllocationT>
+            void destroy(
+                const vma::Allocator&    allocator,
+                std::vector<BufferT>     buffers,
+                std::vector<AllocationT> allocations
+            ) {
+                assert(buffers.size() == allocations.size());
+
+                for (uint32_t i = 0; i < buffers.size(); i++) {
+                    allocator.destroyBuffer(buffers[i], allocations[i]);
+                }
+                buffers.clear();
+                allocations.clear();
+            }
+        };
+
+        struct ComputeBatchResources {
+            vma::Allocator               allocator       = {};
+            std::vector<ShaderResources> shaderResources = {};
+
+            // Copy constructor
+            ComputeBatchResources() = default;
+
+            // Copy constructor
+            explicit ComputeBatchResources(vma::Allocator allocator) :
+                allocator(allocator){};
+
+            // Copy constructor
+            ComputeBatchResources(const ComputeBatchResources&) = delete;
+
+            // Copy assignment operator
+            ComputeBatchResources& operator=(const ComputeBatchResources&) = delete;
+
+            ComputeBatchResources(ComputeBatchResources&& other) noexcept :
+                shaderResources(std::move(other.shaderResources)) {}
+
+            // Move assignment operator
+            ComputeBatchResources& operator=(ComputeBatchResources&& other) noexcept {
+                if (this != &other) {
+                    // Move resources
+                    shaderResources = std::move(other.shaderResources);
+                }
+                return *this;
+            }
+
+            ~ComputeBatchResources() {
+                destroyResources();
+                allocator.destroy();
             };
 
-        } // namespace cpp
-    }     // namespace gpu
-} // namespace epseon
+            static ComputeBatchResources create(
+                uint32_t                  vulkanApiVersion,
+                const vk::Instance&       instance,
+                const vk::PhysicalDevice& physicalDevice,
+                const vk::Device&         logicalDevice
+            ) {
+                ComputeBatchResources resources{
+                    vma::createAllocator(vma::AllocatorCreateInfo()
+                                             .setVulkanApiVersion(vulkanApiVersion)
+                                             .setInstance(instance)
+                                             .setPhysicalDevice(physicalDevice)
+                                             .setDevice(logicalDevice))
+                };
+                return resources;
+            }
+
+            void allocateResources(const std::vector<ShaderBuffersRequirements<FP>>& requirements) {
+                shaderResources.reserve(requirements.size());
+
+                for (const auto& requirementStruct : requirements) {
+                    shaderResources.push_back(ShaderResources::create(allocator, requirementStruct)
+                    );
+                }
+            }
+
+            void destroyResources() {
+                for (uint32_t i = 0; i < shaderResources.size(); i++) {
+                    shaderResources[i].destroy(allocator);
+                }
+                shaderResources.clear();
+            }
+        };
+
+        virtual void run(const std::stop_token& stop_token, TaskHandle<FP>* handle) {
+            CHECK_AND_THROW_IF_REQUESTED_STOP
+
+            const auto& physicalDevice = handle->getDeviceInterface().getPhysicalDevice();
+            auto        logical_device = createLogicalDevice(physicalDevice);
+            const auto& compute_context_state =
+                handle->getDeviceInterface().getComputeContextState();
+
+            auto configurator = handle->getTaskConfigurator();
+
+            CHECK_AND_THROW_IF_REQUESTED_STOP
+
+            ComputeBatchResources resources = ComputeBatchResources::create(
+                handle->getDeviceInterface().getComputeContextState().getVulkanApiVersion(),
+                *compute_context_state.getVkInstance(),
+                *physicalDevice,
+                *logical_device
+            );
+            resources.allocateResources(configurator.getShaderBufferRequirements());
+
+            CHECK_AND_THROW_IF_REQUESTED_STOP
+
+            /*
+            size_t allocation_block_size = handle->getTaskConfigurator()
+                                               .getHardwareConfig()
+                                               ->getAllocationBlockSize();
+
+            // auto buffer = logical_device.createBuffer(
+            //     vk::BufferCreateInfo()
+            //         .setSize(buffer_size_bytes)
+            //         .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
+            // );
+            // buffer.bindMemory();
+            // auto requirements =
+            //     logical_device.getBufferMemoryRequirements(buffer);
+            //  requirements.
+
+            auto descriptor_sets =
+                allocateDescriptorSets(logical_device, group_size, 0);
+
+            std::vector<vk::DescriptorBufferInfo> buffer_info{group_size};
+            std::vector<vk::WriteDescriptorSet>   write_descriptor_sets{
+                group_size};
+
+            for (uint32_t i = 0; i < group_size; i++)
+            {
+                buffer_info[i].setOffset(0).setRange(VK_WHOLE_SIZE);
+                write_descriptor_sets[i]
+                    .setDstSet(*descriptor_sets[0])
+                    .setDstBinding(0)
+                    .setDstArrayElement(i)
+                    .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+                    .setDescriptorCount(1)
+                    .setBufferInfo(buffer_info);
+            } */
+
+            std::cout << "Thread finished" << std::endl;
+        }
+
+        uint32_t selectQueueFamilyIndex(const vk::raii::PhysicalDevice& physicalDevice) {
+            uint32_t queue_family_index = -1;
+
+            for (auto i = 0; const auto& queue : physicalDevice.getQueueFamilyProperties()) {
+                if ((queue.queueFlags & vk::QueueFlagBits::eCompute) &&
+                    (queue.queueFlags & vk::QueueFlagBits::eTransfer)) {
+                    queue_family_index = i;
+                    break;
+                }
+                i++;
+            }
+
+            assert(queue_family_index != -1);
+            return queue_family_index;
+        }
+
+        vk::raii::Device createLogicalDevice(const vk::raii::PhysicalDevice& physicalDevice) {
+            // Exclusive transfer Queue in some GPUs, we may use it in
+            // future.
+            uint32_t             queue_index      = selectQueueFamilyIndex(physicalDevice);
+            std::array<float, 1> queue_priorities = {1.0F};
+            std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos{
+                vk::DeviceQueueCreateInfo()
+                    .setQueueFamilyIndex(queue_index)
+                    .setQueueCount(1)
+                    .setPQueuePriorities(queue_priorities.data())
+            };
+
+            std::vector<const char*> required_device_extensions{};
+
+            auto logicalDevice = physicalDevice.createDevice(
+                vk::DeviceCreateInfo()
+                    .setQueueCreateInfos(queueCreateInfos)
+                    .setPEnabledExtensionNames(required_device_extensions)
+            );
+            return std::move(logicalDevice);
+        }
+
+        std::vector<vk::raii::DescriptorSet> allocateDescriptorSets(
+            vk::raii::Device& logical_device, uint32_t descriptorCount, uint32_t binding
+        ) {
+
+            constexpr uint32_t descriptor_set_count = 0;
+
+            std::array<vk::DescriptorSetLayoutBinding, 1> descriptorSetLayoutBindings{
+                vk::DescriptorSetLayoutBinding()
+                    .setBinding(0)
+                    .setDescriptorCount(descriptorCount)
+                    .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+                    .setStageFlags({vk::ShaderStageFlagBits::eCompute})
+            };
+
+            auto descriptorSetLayout = logical_device.createDescriptorSetLayout(
+                vk::DescriptorSetLayoutCreateInfo().setBindings(descriptorSetLayoutBindings)
+            );
+
+            std::array<vk::DescriptorPoolSize, 1> descriptorPoolSizes{
+                vk::DescriptorPoolSize()
+                    .setDescriptorCount(descriptorCount)
+                    .setType(vk::DescriptorType::eStorageBuffer)
+            };
+
+            auto descriptorPool =
+                logical_device.createDescriptorPool(vk::DescriptorPoolCreateInfo()
+                                                        .setPoolSizes(descriptorPoolSizes)
+                                                        .setMaxSets(descriptor_set_count));
+
+            return logical_device.allocateDescriptorSets(
+                vk::DescriptorSetAllocateInfo()
+                    .setDescriptorPool(*descriptorPool)
+                    .setSetLayouts(*descriptorSetLayout)
+                    .setDescriptorSetCount(descriptor_set_count)
+            );
+        }
+    };
+} // namespace epseon::gpu::cpp

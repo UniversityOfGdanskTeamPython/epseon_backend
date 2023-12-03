@@ -14,9 +14,8 @@ namespace epseon {
                 computeContextState(computeContextState_),
                 physicalDevice(physicalDevice_) {}
 
-            std::shared_ptr<vk::raii::PhysicalDevice>
-            ComputeDeviceInterface::getPhysicalDevice() {
-                return this->physicalDevice;
+            const vk::raii::PhysicalDevice& ComputeDeviceInterface::getPhysicalDevice() const {
+                return *this->physicalDevice;
             }
         } // namespace cpp
     }     // namespace gpu

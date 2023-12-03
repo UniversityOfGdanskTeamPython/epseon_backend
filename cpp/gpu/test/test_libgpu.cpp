@@ -24,9 +24,8 @@ namespace epseon {
 
                 auto device_info_vector = ctx->getPhysicalDevicesInfo();
                 for (auto device_info : device_info_vector) {
-                    auto device =
-                        ctx->getDeviceInterface(device_info.deviceProperties.deviceID);
-                    ASSERT_NE(device->getPhysicalDevice(), nullptr);
+                    auto device = ctx->getDeviceInterface(device_info.deviceProperties.deviceID);
+                    ASSERT_TRUE(&device->getPhysicalDevice());
                 }
             }
 
@@ -36,24 +35,19 @@ namespace epseon {
                 auto device_info_vector = ctx->getPhysicalDevicesInfo();
                 auto first_device_info  = *(device_info_vector.begin());
                 auto first_device =
-                    ctx->getDeviceInterface(first_device_info.deviceProperties.deviceID
-                    );
+                    ctx->getDeviceInterface(first_device_info.deviceProperties.deviceID);
                 auto cfg = first_device->getTaskConfigurator<float>();
-                cfg->setHardwareConfig(std::make_shared<HardwareConfig<float>>(
-                                           500, 100, 16 * 1024 * 1024
-                                       ))
-                    .setAlgorithmConfig(std::make_shared<VibwaAlgorithmConfig<float>>(
-                        87.62, 87.62, 0.1, 0.1, 0, 0
-                    ))
-                    .setPotentialSource(
-                        std::make_shared<MorsePotentialGenerator<float>>(
-                            std::vector<MorsePotentialConfig<float>>{
-                                MorsePotentialConfig<float>(
-                                    5500.0, 0.6, 10, 0.0, 10.0, 500
-                                )
-                            }
-                        )
-                    );
+                cfg->setHardwareConfig(
+                       std::make_shared<HardwareConfig<float>>(500, 100, 16 * 1024 * 1024)
+                )
+                    .setAlgorithmConfig(
+                        std::make_shared<VibwaAlgorithmConfig<float>>(87.62, 87.62, 0.1, 0.1, 0, 0)
+                    )
+                    .setPotentialSource(std::make_shared<MorsePotentialGenerator<float>>(
+                        std::vector<MorsePotentialConfig<float>>{
+                            MorsePotentialConfig<float>(5500.0, 0.6, 10, 0.0, 10.0, 500)
+                        }
+                    ));
 
                 ASSERT_TRUE(cfg->isConfigured());
             }
@@ -64,24 +58,19 @@ namespace epseon {
                 auto device_info_vector = ctx->getPhysicalDevicesInfo();
                 auto first_device_info  = *(device_info_vector.begin());
                 auto first_device =
-                    ctx->getDeviceInterface(first_device_info.deviceProperties.deviceID
-                    );
+                    ctx->getDeviceInterface(first_device_info.deviceProperties.deviceID);
                 auto cfg = first_device->getTaskConfigurator<float>();
-                cfg->setHardwareConfig(std::make_shared<HardwareConfig<float>>(
-                                           500, 100, 16 * 1024 * 1024
-                                       ))
-                    .setAlgorithmConfig(std::make_shared<VibwaAlgorithmConfig<float>>(
-                        87.62, 87.62, 0.1, 0.1, 0, 0
-                    ))
-                    .setPotentialSource(
-                        std::make_shared<MorsePotentialGenerator<float>>(
-                            std::vector<MorsePotentialConfig<float>>{
-                                MorsePotentialConfig<float>(
-                                    5500.0, 0.6, 10, 0.0, 10.0, 500
-                                )
-                            }
-                        )
-                    );
+                cfg->setHardwareConfig(
+                       std::make_shared<HardwareConfig<float>>(500, 100, 16 * 1024 * 1024)
+                )
+                    .setAlgorithmConfig(
+                        std::make_shared<VibwaAlgorithmConfig<float>>(87.62, 87.62, 0.1, 0.1, 0, 0)
+                    )
+                    .setPotentialSource(std::make_shared<MorsePotentialGenerator<float>>(
+                        std::vector<MorsePotentialConfig<float>>{
+                            MorsePotentialConfig<float>(5500.0, 0.6, 10, 0.0, 10.0, 500)
+                        }
+                    ));
 
                 auto handle = first_device->submitTask(cfg);
                 handle->startWorker();
@@ -94,27 +83,20 @@ namespace epseon {
 
                     auto device_info_vector = ctx->getPhysicalDevicesInfo();
                     auto first_device_info  = *(device_info_vector.begin());
-                    auto first_device       = ctx->getDeviceInterface(
-                        first_device_info.deviceProperties.deviceID
-                    );
+                    auto first_device =
+                        ctx->getDeviceInterface(first_device_info.deviceProperties.deviceID);
                     auto cfg = first_device->getTaskConfigurator<float>();
-                    cfg->setHardwareConfig(std::make_shared<HardwareConfig<float>>(
-                                               500, 100, 16 * 1024 * 1024
-                                           ))
-                        .setAlgorithmConfig(
-                            std::make_shared<VibwaAlgorithmConfig<float>>(
-                                87.62, 87.62, 0.1, 0.1, 0, 0
-                            )
-                        )
-                        .setPotentialSource(
-                            std::make_shared<MorsePotentialGenerator<float>>(
-                                std::vector<MorsePotentialConfig<float>>{
-                                    MorsePotentialConfig<float>(
-                                        5500.0, 0.6, 10, 0.0, 10.0, 500
-                                    )
-                                }
-                            )
-                        );
+                    cfg->setHardwareConfig(
+                           std::make_shared<HardwareConfig<float>>(500, 100, 16 * 1024 * 1024)
+                    )
+                        .setAlgorithmConfig(std::make_shared<VibwaAlgorithmConfig<float>>(
+                            87.62, 87.62, 0.1, 0.1, 0, 0
+                        ))
+                        .setPotentialSource(std::make_shared<MorsePotentialGenerator<float>>(
+                            std::vector<MorsePotentialConfig<float>>{
+                                MorsePotentialConfig<float>(5500.0, 0.6, 10, 0.0, 10.0, 500)
+                            }
+                        ));
                     return first_device->submitTask(cfg);
                 };
 

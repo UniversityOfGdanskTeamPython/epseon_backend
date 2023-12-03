@@ -15,52 +15,37 @@
 #include <variant>
 #include <vector>
 
-namespace epseon {
-    namespace gpu {
-        namespace cpp {
+namespace epseon::gpu::cpp {
 
-            typedef std::variant<TaskConfigurator<float>, TaskConfigurator<double>>
-                TaskConfiguratorVariant;
+    class ComputeDeviceInterface : public std::enable_shared_from_this<ComputeDeviceInterface> {
+      private: /* Private members. */
+        std::shared_ptr<ComputeContextState>      computeContextState;
+        std::shared_ptr<vk::raii::PhysicalDevice> physicalDevice;
 
-            class ComputeDeviceInterface
-                : public std::enable_shared_from_this<ComputeDeviceInterface> {
-              private: /* Private members. */
-                std::shared_ptr<ComputeContextState>      computeContextState;
-                std::shared_ptr<vk::raii::PhysicalDevice> physicalDevice;
+      public: /* Public constructors. */
+        ComputeDeviceInterface(std::shared_ptr<ComputeContextState>, std::shared_ptr<vk::raii::PhysicalDevice>);
 
-              public: /* Public constructors. */
-                ComputeDeviceInterface(std::shared_ptr<ComputeContextState>, std::shared_ptr<vk::raii::PhysicalDevice>);
+      public: /* Public methods. */
+        template <typename FP>
+        std::shared_ptr<TaskConfigurator<FP>> getTaskConfigurator() {
+            return std::make_shared<TaskConfigurator<FP>>();
+        }
 
-              public: /* Public destructor. */
-                ~ComputeDeviceInterface() {}
+        const vk::raii::PhysicalDevice& getPhysicalDevice() const;
 
-              public: /* Public methods. */
-                template <typename FP>
-                std::shared_ptr<TaskConfigurator<FP>> getTaskConfigurator() {
-                    return std::make_shared<TaskConfigurator<FP>>();
-                }
+        template <typename FP>
+        // Namespaces specified explicitly to avoid confusion.
+        std::shared_ptr<epseon::gpu::cpp::TaskHandle<FP>>
+        submitTask(std::shared_ptr<TaskConfigurator<FP>> task_config) {
+            if (!task_config->isConfigured()) {
+                throw std::runtime_error("TaskConfigurator wasn't fully configured before "
+                                         "submitting for execution.");
+            }
+            return std::make_shared<TaskHandle<FP>>(this->shared_from_this(), task_config);
+        }
 
-                std::shared_ptr<vk::raii::PhysicalDevice> getPhysicalDevice();
-
-                template <typename FP>
-                // Namespaces specified explicitly to avoid confusion.
-                std::shared_ptr<epseon::gpu::cpp::TaskHandle<FP>>
-                submitTask(std::shared_ptr<TaskConfigurator<FP>> task_config) {
-                    if (!task_config->isConfigured()) {
-                        throw std::runtime_error(
-                            "TaskConfigurator wasn't fully configured before "
-                            "submitting for execution."
-                        );
-                    }
-                    return std::make_shared<TaskHandle<FP>>(
-                        this->shared_from_this(), task_config
-                    );
-                }
-
-                const ComputeContextState& getComputeContextState() const {
-                    return *this->computeContextState;
-                }
-            };
-        } // namespace cpp
-    }     // namespace gpu
-} // namespace epseon
+        [[nodiscard]] const ComputeContextState& getComputeContextState() const {
+            return *this->computeContextState;
+        }
+    };
+} // namespace epseon::gpu::cpp
