@@ -20,9 +20,7 @@ namespace epseon {
                 EXPECT_EQ(this->config_default.getMassAtom0(), TypeParam{});
                 EXPECT_EQ(this->config_default.getMassAtom1(), TypeParam{});
                 EXPECT_EQ(this->config_default.getIntegrationStep(), TypeParam{});
-                EXPECT_EQ(
-                    this->config_default.getMinDistanceToAsymptote(), TypeParam{}
-                );
+                EXPECT_EQ(this->config_default.getMinDistanceToAsymptote(), TypeParam{});
                 EXPECT_EQ(this->config_default.getMinLevel(), 0u);
                 EXPECT_EQ(this->config_default.getMaxLevel(), 0u);
             }
@@ -31,9 +29,7 @@ namespace epseon {
                 EXPECT_EQ(this->config_custom.getMassAtom0(), TypeParam{1.0});
                 EXPECT_EQ(this->config_custom.getMassAtom1(), TypeParam{2.0});
                 EXPECT_EQ(this->config_custom.getIntegrationStep(), TypeParam{0.1});
-                EXPECT_EQ(
-                    this->config_custom.getMinDistanceToAsymptote(), TypeParam{0.05}
-                );
+                EXPECT_EQ(this->config_custom.getMinDistanceToAsymptote(), TypeParam{0.05});
                 EXPECT_EQ(this->config_custom.getMinLevel(), 10u);
                 EXPECT_EQ(this->config_custom.getMaxLevel(), 20u);
             }
@@ -41,59 +37,39 @@ namespace epseon {
             // Tests for the copy constructor
             TYPED_TEST(VibwaAlgorithmConfigTest, CopyConstructor) {
                 VibwaAlgorithmConfig<TypeParam> copied_config(this->config_custom);
+                EXPECT_EQ(copied_config.getMassAtom0(), this->config_custom.getMassAtom0());
+                EXPECT_EQ(copied_config.getMassAtom1(), this->config_custom.getMassAtom1());
                 EXPECT_EQ(
-                    copied_config.getMassAtom0(), this->config_custom.getMassAtom0()
-                );
-                EXPECT_EQ(
-                    copied_config.getMassAtom1(), this->config_custom.getMassAtom1()
-                );
-                EXPECT_EQ(
-                    copied_config.getIntegrationStep(),
-                    this->config_custom.getIntegrationStep()
+                    copied_config.getIntegrationStep(), this->config_custom.getIntegrationStep()
                 );
                 EXPECT_EQ(
                     copied_config.getMinDistanceToAsymptote(),
                     this->config_custom.getMinDistanceToAsymptote()
                 );
-                EXPECT_EQ(
-                    copied_config.getMinLevel(), this->config_custom.getMinLevel()
-                );
-                EXPECT_EQ(
-                    copied_config.getMaxLevel(), this->config_custom.getMaxLevel()
-                );
+                EXPECT_EQ(copied_config.getMinLevel(), this->config_custom.getMinLevel());
+                EXPECT_EQ(copied_config.getMaxLevel(), this->config_custom.getMaxLevel());
             }
 
             // Tests for the copy assignment operator
             TYPED_TEST(VibwaAlgorithmConfigTest, CopyAssignmentOperator) {
                 VibwaAlgorithmConfig<TypeParam> copied_config;
                 copied_config = this->config_custom;
+                EXPECT_EQ(copied_config.getMassAtom0(), this->config_custom.getMassAtom0());
+                EXPECT_EQ(copied_config.getMassAtom1(), this->config_custom.getMassAtom1());
                 EXPECT_EQ(
-                    copied_config.getMassAtom0(), this->config_custom.getMassAtom0()
-                );
-                EXPECT_EQ(
-                    copied_config.getMassAtom1(), this->config_custom.getMassAtom1()
-                );
-                EXPECT_EQ(
-                    copied_config.getIntegrationStep(),
-                    this->config_custom.getIntegrationStep()
+                    copied_config.getIntegrationStep(), this->config_custom.getIntegrationStep()
                 );
                 EXPECT_EQ(
                     copied_config.getMinDistanceToAsymptote(),
                     this->config_custom.getMinDistanceToAsymptote()
                 );
-                EXPECT_EQ(
-                    copied_config.getMinLevel(), this->config_custom.getMinLevel()
-                );
-                EXPECT_EQ(
-                    copied_config.getMaxLevel(), this->config_custom.getMaxLevel()
-                );
+                EXPECT_EQ(copied_config.getMinLevel(), this->config_custom.getMinLevel());
+                EXPECT_EQ(copied_config.getMaxLevel(), this->config_custom.getMaxLevel());
             }
 
             // Tests for the move constructor
             TYPED_TEST(VibwaAlgorithmConfigTest, MoveConstructor) {
-                VibwaAlgorithmConfig<TypeParam> moved_config(
-                    std::move(this->config_custom)
-                );
+                VibwaAlgorithmConfig<TypeParam> moved_config(std::move(this->config_custom));
                 EXPECT_EQ(moved_config.getMassAtom0(), TypeParam{1.0});
                 EXPECT_EQ(moved_config.getMassAtom1(), TypeParam{2.0});
                 EXPECT_EQ(moved_config.getIntegrationStep(), TypeParam{0.1});
@@ -135,8 +111,7 @@ namespace epseon {
             TYPED_TEST(VibwaAlgorithmConfigTest, UniqueCloneMethod) {
                 auto cloned = this->config_custom.unique_clone();
                 EXPECT_NE(cloned, nullptr);
-                auto cloned_cast =
-                    static_cast<VibwaAlgorithmConfig<TypeParam>*>(cloned.get());
+                auto cloned_cast = static_cast<VibwaAlgorithmConfig<TypeParam>*>(cloned.get());
                 EXPECT_NE(cloned_cast, nullptr);
                 EXPECT_EQ(cloned_cast->getMassAtom0(), TypeParam{1.0});
                 EXPECT_EQ(cloned_cast->getMassAtom1(), TypeParam{2.0});

@@ -8,10 +8,8 @@ namespace epseon {
         namespace common {
             std::string vulkan_version_to_string(uint32_t version) {
                 std::stringstream ss;
-                ss << vk::apiVersionVariant(version) << "."
-                   << vk::apiVersionMajor(version) << "."
-                   << vk::apiVersionMinor(version) << "."
-                   << vk::apiVersionPatch(version);
+                ss << vk::apiVersionVariant(version) << "." << vk::apiVersionMajor(version) << "."
+                   << vk::apiVersionMinor(version) << "." << vk::apiVersionPatch(version);
                 return ss.str();
             }
         } // namespace common

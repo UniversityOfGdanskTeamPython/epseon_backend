@@ -49,9 +49,7 @@ namespace epseon {
             std::shared_ptr<ComputeContext> ComputeContext::create(uint32_t version) {
                 auto logger = spdlog::get("_libepseon_gpu");
                 if (!logger) {
-                    logger = spdlog::basic_logger_mt(
-                        "_libepseon_gpu", "./log/epseon/gpu/log.txt"
-                    );
+                    logger = spdlog::basic_logger_mt("_libepseon_gpu", "./log/epseon/gpu/log.txt");
                 }
 
                 auto context = std::make_shared<vk::raii::Context>();
@@ -87,18 +85,15 @@ namespace epseon {
 
                 std::vector<const char*> instanceExtensions{};
 
-                auto instanceCreateInfo =
-                    vk::InstanceCreateInfo()
-                        .setEnabledExtensionCount(instanceExtensions.size())
-                        .setPEnabledExtensionNames(instanceExtensions)
-                        .setPApplicationInfo(applicationInfo.get());
+                auto instanceCreateInfo = vk::InstanceCreateInfo()
+                                              .setEnabledExtensionCount(instanceExtensions.size())
+                                              .setPEnabledExtensionNames(instanceExtensions)
+                                              .setPApplicationInfo(applicationInfo.get());
                 auto instance = std::make_shared<vk::raii::Instance>(
                     std::move(context->createInstance(instanceCreateInfo))
                 );
 
-                return std::make_shared<ComputeContext>(
-                    logger, context, applicationInfo, instance
-                );
+                return std::make_shared<ComputeContext>(logger, context, applicationInfo, instance);
             }
 
             std::string ComputeContext::getVulkanAPIVersion() {
@@ -109,8 +104,7 @@ namespace epseon {
             std::vector<PhysicalDeviceInfo> ComputeContext::getPhysicalDevicesInfo() {
                 std::vector<PhysicalDeviceInfo> devices;
 
-                for (auto physicalDevice :
-                     this->state->instance->enumeratePhysicalDevices()) {
+                for (auto physicalDevice : this->state->instance->enumeratePhysicalDevices()) {
                     auto deviceProperties = physicalDevice.getProperties();
                     auto memoryProperties = physicalDevice.getMemoryProperties();
                     devices.push_back({deviceProperties, memoryProperties});
@@ -127,9 +121,7 @@ namespace epseon {
 
                     if (props.deviceID == deviceId) {
                         auto physicalDevicePtr =
-                            std::make_shared<vk::raii::PhysicalDevice>(
-                                std::move(physicalDevice)
-                            );
+                            std::make_shared<vk::raii::PhysicalDevice>(std::move(physicalDevice));
                         return std::make_shared<ComputeDeviceInterface>(
                             this->state, physicalDevicePtr
                         );
