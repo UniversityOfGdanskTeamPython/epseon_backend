@@ -75,7 +75,7 @@ jobs:
             - name: Set up Vulkan SDK
               uses: humbletim/setup-vulkan-sdk@v1.2.0
               with:
-                  vulkan-query-version: "1.3.268.0"
+                  vulkan-query-version: "1.3.261.1"
                   vulkan-components: Vulkan-Headers, Vulkan-Loader
 
             - name: Install Poetry
