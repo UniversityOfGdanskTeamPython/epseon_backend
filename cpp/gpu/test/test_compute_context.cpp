@@ -1,6 +1,7 @@
 #include "epseon/gpu/compute_context.hpp"
 #include "epseon/gpu/device_interface.hpp"
 #include <gtest/gtest.h>
+#include <iostream>
 #include <regex>
 
 namespace epseon {
@@ -9,7 +10,23 @@ namespace epseon {
             class ComputeContextTest : public ::testing::Test {};
 
             TEST_F(ComputeContextTest, TestConstruction) {
+                std::cerr << std::endl
+                          << " --------------------------------- Foo test "
+                             "TestConstruction ever started"
+                          << std::endl;
+                std::cout << std::endl
+                          << " --------------------------------- Foo test "
+                             "TestConstruction ever started"
+                          << std::endl;
                 auto ctx = ComputeContext::create();
+                std::cerr << std::endl
+                          << " --------------------------------- Foo test "
+                             "TestConstruction ever finished"
+                          << std::endl;
+                std::cout << std::endl
+                          << " --------------------------------- Foo test "
+                             "TestConstruction ever finished"
+                          << std::endl;
             }
 
             TEST_F(ComputeContextTest, TestGetVulkanAPIVersion) {
