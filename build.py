@@ -17,7 +17,6 @@ class Builder:
         ("spdlog", "v1.12.0"),
         ("pybind11", "v2.11.1"),
         ("fmt", "10.1.1"),
-        ("vma", "v3.0.1"),  # vma and vma_hpp have to be the same version.
         ("vma_hpp", "v3.0.1"),
     )
 
@@ -33,7 +32,7 @@ class Builder:
         if not (THIS_DIR / ".git").exists():
             return
 
-        self.git("submodule", "init")
+        self.git("submodule", "update", "--init", "--recursive")
         for dependency_name, dependency_tag in self.DEPS:
             self.git(
                 "-C",
