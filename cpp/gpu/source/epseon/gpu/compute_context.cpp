@@ -93,6 +93,7 @@ namespace epseon {
                         .setEnabledExtensionCount(instanceExtensions.size())
                         .setPEnabledExtensionNames(instanceExtensions)
                         .setPApplicationInfo(applicationInfo.get());
+
                 auto instance = std::make_shared<vk::raii::Instance>(
                     std::move(context->createInstance(instanceCreateInfo))
                 );
