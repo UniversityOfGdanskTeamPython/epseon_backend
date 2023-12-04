@@ -52,7 +52,6 @@ set(epseon_gpu_INCLUDE
     PRIVATE "${PROJECT_SOURCE_DIR}/../include"
     PRIVATE "${REPOSITORY_ROOT}/external/spdlog/include"
     PRIVATE "${REPOSITORY_ROOT}/external/fmt/include"
-    PRIVATE "${REPOSITORY_ROOT}/external/vma/include"
     PRIVATE "${REPOSITORY_ROOT}/external/vma_hpp/include"
     PRIVATE "${REPOSITORY_ROOT}/external/pybind11/include"
     PRIVATE "${Python3_INCLUDE_DIRS}"

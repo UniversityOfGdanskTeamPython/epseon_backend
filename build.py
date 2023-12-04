@@ -17,7 +17,7 @@ class Builder:
         ("spdlog", "v1.12.0"),
         ("pybind11", "v2.11.1"),
         ("fmt", "10.1.1"),
-        ("vma_hpp", "v3.0.1"),
+        ("vma_hpp", "v3.0.1-3"),
     )
 
     def __init__(self) -> None:
