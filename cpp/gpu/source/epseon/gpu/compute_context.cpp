@@ -90,8 +90,6 @@ namespace epseon {
 
                 auto instanceCreateInfo =
                     vk::InstanceCreateInfo()
-                        .setFlags({vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR}
-                        )
                         .setEnabledExtensionCount(instanceExtensions.size())
                         .setPEnabledExtensionNames(instanceExtensions)
                         .setPApplicationInfo(applicationInfo.get());
