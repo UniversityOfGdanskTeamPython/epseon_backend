@@ -1,16 +1,14 @@
 #pragma once
 
+#include "epseon/vulkan_headers.hpp"
+
 #include "epseon/gpu/predecl.hpp"
 
 #include "epseon/gpu/task_configurator/algorithm_config.hpp"
-#include "epseon/vulkan_headers.hpp"
 
 #include "epseon/gpu/algorithms/algorithm.hpp"
 #include "epseon/gpu/task_handle.hpp"
 #include "spdlog/fmt/bundled/core.h"
-#include "vk_mem_alloc_enums.hpp"
-#include "vk_mem_alloc_handles.hpp"
-#include "vk_mem_alloc_structs.hpp"
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -24,18 +22,10 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_raii.hpp>
 
 namespace epseon::gpu::cpp {
 
     class Interrupted : public std::exception {};
-
-#define CHECK_AND_THROW_IF_REQUESTED_STOP \
-    if (stop_token.stop_requested()) {    \
-        throw Interrupted();              \
-    }
 
     template <typename FP>
     class VibwaAlgorithm : public Algorithm<FP> {
@@ -272,7 +262,6 @@ namespace epseon::gpu::cpp {
         };
 
         virtual void run(const std::stop_token& stop_token, TaskHandle<FP>* handle) {
-            CHECK_AND_THROW_IF_REQUESTED_STOP
 
             const auto& physicalDevice = handle->getDeviceInterface().getPhysicalDevice();
             auto        logical_device = createLogicalDevice(physicalDevice);
@@ -281,8 +270,6 @@ namespace epseon::gpu::cpp {
 
             auto configurator = handle->getTaskConfigurator();
 
-            CHECK_AND_THROW_IF_REQUESTED_STOP
-
             ComputeBatchResources resources = ComputeBatchResources::create(
                 handle->getDeviceInterface().getComputeContextState().getVulkanApiVersion(),
                 *compute_context_state.getVkInstance(),
@@ -290,8 +277,6 @@ namespace epseon::gpu::cpp {
                 *logical_device
             );
             resources.allocateResources(configurator.getShaderBufferRequirements());
-
-            CHECK_AND_THROW_IF_REQUESTED_STOP
 
             /*
             size_t allocation_block_size = handle->getTaskConfigurator()

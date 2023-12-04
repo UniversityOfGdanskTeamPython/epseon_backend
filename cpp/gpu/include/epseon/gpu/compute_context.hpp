@@ -1,8 +1,8 @@
 #pragma once
 
-#include "epseon/gpu/predecl.hpp"
-
 #include "epseon/vulkan_headers.hpp"
+
+#include "epseon/gpu/predecl.hpp"
 
 #include "spdlog/logger.h"
 #include <cstdint>

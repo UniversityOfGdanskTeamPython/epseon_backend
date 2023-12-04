@@ -1,8 +1,8 @@
 #pragma once
 
-#include "epseon/gpu/predecl.hpp"
-
 #include "epseon/vulkan_headers.hpp"
+
+#include "epseon/gpu/predecl.hpp"
 
 #include "epseon/gpu/compute_context.hpp"
 #include "epseon/gpu/task_configurator/task_configurator.hpp"

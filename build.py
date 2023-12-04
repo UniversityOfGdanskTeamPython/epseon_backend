@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -46,7 +47,6 @@ class Builder:
                 "checkout",
                 dependency_tag,
             )
-        self.git("submodule", "update", "--init", "--recursive")
 
     def git(self, *arg: str) -> None:
         """Run git command."""
@@ -85,6 +85,7 @@ class Builder:
                     "import cmake;cmake.cmake()",
                     *arg,
                 ],
+                env=os.environ,
                 cwd=self.repo_path.as_posix(),
                 capture_output=True,
                 check=True,

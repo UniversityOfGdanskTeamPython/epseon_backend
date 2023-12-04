@@ -56,7 +56,7 @@ namespace epseon {
                 auto ctx = ComputeContext::create();
 
                 auto device_info_vector = ctx->getPhysicalDevicesInfo();
-                auto first_device_info  = *(device_info_vector.begin());
+                auto first_device_info  = device_info_vector[0];
                 auto first_device =
                     ctx->getDeviceInterface(first_device_info.deviceProperties.deviceID);
                 auto cfg = first_device->getTaskConfigurator<float>();
@@ -82,7 +82,7 @@ namespace epseon {
                     auto ctx = ComputeContext::create();
 
                     auto device_info_vector = ctx->getPhysicalDevicesInfo();
-                    auto first_device_info  = *(device_info_vector.begin());
+                    auto first_device_info  = device_info_vector[0];
                     auto first_device =
                         ctx->getDeviceInterface(first_device_info.deviceProperties.deviceID);
                     auto cfg = first_device->getTaskConfigurator<float>();
