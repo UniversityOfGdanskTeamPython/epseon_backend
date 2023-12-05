@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace epseon::gpu::cpp {
 
@@ -230,16 +231,25 @@ namespace epseon::gpu::cpp {
 
             static ComputeBatchResources create(
                 uint32_t                  vulkanApiVersion,
-                const vk::Instance&       instance,
+                const vk::raii::Instance& instance,
                 const vk::PhysicalDevice& physicalDevice,
                 const vk::Device&         logicalDevice
             ) {
+                auto functions = vma::VulkanFunctions();
+
+                functions.setVkGetInstanceProcAddr(instance.getDispatcher()->vkGetInstanceProcAddr)
+                    .setVkGetDeviceProcAddr(instance.getDispatcher()->vkGetDeviceProcAddr);
+
+                assert(functions.vkGetInstanceProcAddr != nullptr);
+                assert(functions.vkGetDeviceProcAddr != nullptr);
+
                 ComputeBatchResources resources{
                     vma::createAllocator(vma::AllocatorCreateInfo()
                                              .setVulkanApiVersion(vulkanApiVersion)
-                                             .setInstance(instance)
+                                             .setInstance(*instance)
                                              .setPhysicalDevice(physicalDevice)
-                                             .setDevice(logicalDevice))
+                                             .setDevice(logicalDevice)
+                                             .setPVulkanFunctions(&functions))
                 };
                 return resources;
             }
@@ -272,7 +282,7 @@ namespace epseon::gpu::cpp {
 
             ComputeBatchResources resources = ComputeBatchResources::create(
                 handle->getDeviceInterface().getComputeContextState().getVulkanApiVersion(),
-                *compute_context_state.getVkInstance(),
+                compute_context_state.getVkInstance(),
                 *physicalDevice,
                 *logical_device
             );
