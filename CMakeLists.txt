@@ -54,7 +54,7 @@ add_subdirectory("external/spdlog")
 # Add GoogleTest as a subdirectory.
 add_subdirectory("external/googletest")
 
-add_subdirectory("external/vma_hpp/VulkanMemoryAllocator")
+add_subdirectory("external/vma_hpp")
 
 # Enable testing
 enable_testing()
