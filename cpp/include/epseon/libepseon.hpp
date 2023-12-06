@@ -8,10 +8,12 @@
 #include "fmt/format.h"
 
 #if (defined(DEBUG) || (!defined(NDEBUG)) || defined(_DEBUG))
+    #pragma message("[INFO] Compiling libepseon in debug mode.")
     #define LIB_EPSEON_DEBUG 1
     #define LIB_EPSEON_RELEASE 0
 #else
-    #define LIB_EPSEON_DEBUG_ON 0
+    #pragma message("[INFO] Compiling libepseon in release mode.")
+    #define LIB_EPSEON_DEBUG 0
     #define LIB_EPSEON_RELEASE 1
 #endif
 
