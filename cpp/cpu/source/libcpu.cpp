@@ -15,8 +15,7 @@ static PyObject* greet(PyObject* self, PyObject* args) {
 // ml_flags: Flags indicating special features or restrictions of the method, such as
 // METH_NOARGS ml_doc:  Points to the contents of the docstring
 static PyMethodDef LibCPUMethods[] = {
-    {"greet", greet, METH_NOARGS, "Greet the world."},
-    {NULL, NULL, 0, NULL} /* Sentinel */
+    {"greet", greet, METH_NOARGS, "Greet the world."}, {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
 // Module definition

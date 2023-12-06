@@ -8,9 +8,7 @@
 #include "pybind11/detail/common.h"
 #include "pybind11/pytypes.h"
 #include "pybind11/stl.h"
-#include "vulkan/vulkan.hpp"
-#include "vulkan/vulkan_enums.hpp"
-#include "vulkan/vulkan_structs.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -78,13 +76,9 @@ namespace epseon {
                 PrecisionTypeAssertValueCount(2);
                 switch (precision_enum_value) {
                     case cpp::PrecisionType::Float32:
-                        return TaskConfigurator<float>{
-                            device->getTaskConfigurator<float>()
-                        };
+                        return TaskConfigurator<float>{device->getTaskConfigurator<float>()};
                     case cpp::PrecisionType::Float64:
-                        return TaskConfigurator<double>{
-                            device->getTaskConfigurator<double>()
-                        };
+                        return TaskConfigurator<double>{device->getTaskConfigurator<double>()};
                     default:
                         throw std::runtime_error("Unreachable.");
                 }
@@ -109,13 +103,11 @@ namespace epseon {
                 return application->getVulkanAPIVersion();
             }
 
-            std::vector<cpp::PhysicalDeviceInfo>
-            EpseonComputeContext::get_physical_device_info() {
+            std::vector<cpp::PhysicalDeviceInfo> EpseonComputeContext::get_physical_device_info() {
                 return application->getPhysicalDevicesInfo();
             }
 
-            ComputeDeviceInterface
-            EpseonComputeContext::get_device_interface(uint32_t device_id) {
+            ComputeDeviceInterface EpseonComputeContext::get_device_interface(uint32_t device_id) {
                 return {application->getDeviceInterface(device_id)};
             }
 
@@ -123,11 +115,8 @@ namespace epseon {
                 m.doc() = "Sub package for interacting with GPU compute "
                           "capabilities.";
 
-                py::class_<vk::PhysicalDeviceSparseProperties>(
-                    m, "PhysicalDeviceSparseProperties"
-                )
-                    .doc() =
-                    "Wrapper around vk::PhysicalDeviceSparseProperties object.";
+                py::class_<vk::PhysicalDeviceSparseProperties>(m, "PhysicalDeviceSparseProperties")
+                    .doc() = "Wrapper around vk::PhysicalDeviceSparseProperties object.";
 
                 /* Python API -  Wrapper around container class for physical device
                  * limits - mostly max counts of different resources. */
@@ -176,8 +165,7 @@ namespace epseon {
                     .def_property_readonly(
                         "driver_version",
                         [](const vk::PhysicalDeviceProperties& props) {
-                            return common::vulkan_version_to_string(props.driverVersion
-                            );
+                            return common::vulkan_version_to_string(props.driverVersion);
                         }
                     )
                     .def_property_readonly(
@@ -220,8 +208,7 @@ namespace epseon {
                         "pipeline_cache_uuid",
                         [](const vk::PhysicalDeviceProperties& props) {
                             return std::vector<uint8_t>(
-                                props.pipelineCacheUUID.begin(),
-                                props.pipelineCacheUUID.end()
+                                props.pipelineCacheUUID.begin(), props.pipelineCacheUUID.end()
                             );
                         }
                     )
@@ -274,23 +261,18 @@ namespace epseon {
                         "flags",
                         [](const vk::MemoryType& mem_type) {
                             std::vector<std::string> flags = {};
-                            if (mem_type.propertyFlags &
-                                vk::MemoryPropertyFlagBits::eDeviceLocal)
+                            if (mem_type.propertyFlags & vk::MemoryPropertyFlagBits::eDeviceLocal)
                                 flags.push_back("DEVICE_LOCAL");
-                            if (mem_type.propertyFlags &
-                                vk::MemoryPropertyFlagBits::eHostVisible)
+                            if (mem_type.propertyFlags & vk::MemoryPropertyFlagBits::eHostVisible)
                                 flags.push_back("HOST_VISIBLE");
-                            if (mem_type.propertyFlags &
-                                vk::MemoryPropertyFlagBits::eHostCoherent)
+                            if (mem_type.propertyFlags & vk::MemoryPropertyFlagBits::eHostCoherent)
                                 flags.push_back("HOST_COHERENT");
-                            if (mem_type.propertyFlags &
-                                vk::MemoryPropertyFlagBits::eHostCached)
+                            if (mem_type.propertyFlags & vk::MemoryPropertyFlagBits::eHostCached)
                                 flags.push_back("HOST_CACHED");
                             if (mem_type.propertyFlags &
                                 vk::MemoryPropertyFlagBits::eLazilyAllocated)
                                 flags.push_back("LAZILY_ALLOCATED");
-                            if (mem_type.propertyFlags &
-                                vk::MemoryPropertyFlagBits::eProtected)
+                            if (mem_type.propertyFlags & vk::MemoryPropertyFlagBits::eProtected)
                                 flags.push_back("PROTECTED");
                             if (mem_type.propertyFlags &
                                 vk::MemoryPropertyFlagBits::eDeviceCoherentAMD)
@@ -298,8 +280,7 @@ namespace epseon {
                             if (mem_type.propertyFlags &
                                 vk::MemoryPropertyFlagBits::eDeviceUncachedAMD)
                                 flags.push_back("DEVICE_UNCACHED_AMD");
-                            if (mem_type.propertyFlags &
-                                vk::MemoryPropertyFlagBits::eRdmaCapableNV)
+                            if (mem_type.propertyFlags & vk::MemoryPropertyFlagBits::eRdmaCapableNV)
                                 flags.push_back("RDMA_CAPABLE_NV");
                             return flags;
                         }
@@ -308,9 +289,7 @@ namespace epseon {
 
                 /* Python API - Wrapper around container class for properties of
                  * physical device memory retrieved from Vulkan API. */
-                py::class_<vk::PhysicalDeviceMemoryProperties>(
-                    m, "PhysicalDeviceMemoryProperties"
-                )
+                py::class_<vk::PhysicalDeviceMemoryProperties>(m, "PhysicalDeviceMemoryProperties")
                     .def_property_readonly(
                         "memory_heaps",
                         [](const vk::PhysicalDeviceMemoryProperties& props) {
@@ -331,8 +310,7 @@ namespace epseon {
                             return memoryTypes;
                         }
                     )
-                    .doc() =
-                    "Wrapper around vk::PhysicalDeviceMemoryProperties object.";
+                    .doc() = "Wrapper around vk::PhysicalDeviceMemoryProperties object.";
 
                 /* Python API - Wrapper class around PhysicalDeviceInfo class. */
                 py::class_<cpp::PhysicalDeviceInfo>(m, "PhysicalDeviceInfo")
@@ -348,8 +326,7 @@ namespace epseon {
                             return info.memoryProperties;
                         }
                     )
-                    .doc() =
-                    "Container for physical device info retrieved from Vulkan API.";
+                    .doc() = "Container for physical device info retrieved from Vulkan API.";
 
                 py::class_<TaskHandleFloat32>(m, "TaskHandleFloat32")
                     .def(
@@ -362,13 +339,8 @@ namespace epseon {
                         &TaskHandleFloat32::is_done,
                         "Check if task already finished execution."
                     )
-                    .def(
-                        "wait",
-                        &TaskHandleFloat32::wait,
-                        "Block and wait for task to finish."
-                    )
-                    .doc() =
-                    "Handle object for referencing double precision GPU compute task.";
+                    .def("wait", &TaskHandleFloat32::wait, "Block and wait for task to finish.")
+                    .doc() = "Handle object for referencing double precision GPU compute task.";
 
                 py::class_<TaskHandleFloat64>(m, "TaskHandleFloat64")
                     .def(
@@ -381,13 +353,8 @@ namespace epseon {
                         &TaskHandleFloat64::is_done,
                         "Check if task already finished execution."
                     )
-                    .def(
-                        "wait",
-                        &TaskHandleFloat64::wait,
-                        "Block and wait for task to finish."
-                    )
-                    .doc() =
-                    "Handle object for referencing double precision GPU compute task.";
+                    .def("wait", &TaskHandleFloat64::wait, "Block and wait for task to finish.")
+                    .doc() = "Handle object for referencing double precision GPU compute task.";
 
                 py::class_<MorsePotentialConfig>(m, "MorsePotentialConfig")
                     .def(

@@ -64,9 +64,7 @@ namespace epseon {
             }
 
             TYPED_TEST(TaskConfiguratorTest, MoveConstructor) {
-                TaskConfigurator<TypeParam> moved_config(
-                    std::move(this->configurator_custom)
-                );
+                TaskConfigurator<TypeParam> moved_config(std::move(this->configurator_custom));
                 EXPECT_TRUE(moved_config.isConfigured()
                 ); // This check depends on the state of configurator_custom
             }
@@ -87,20 +85,18 @@ namespace epseon {
             TYPED_TEST(TaskConfiguratorTest, SetPotentialSource) {
                 auto ps = std::make_shared<MorsePotentialGenerator<TypeParam>>();
                 this->configurator_default.setPotentialSource(ps);
-                auto ps2 =
-                    std::dynamic_pointer_cast<MorsePotentialGenerator<TypeParam>>(
-                        this->configurator_default.getPotentialSource()
-                    );
+                auto ps2 = std::dynamic_pointer_cast<MorsePotentialGenerator<TypeParam>>(
+                    this->configurator_default.getPotentialSource()
+                );
                 ASSERT_EQ(*ps2, *ps);
             }
 
             TYPED_TEST(TaskConfiguratorTest, SetAlgorithmConfig) {
                 auto ac = std::make_shared<VibwaAlgorithmConfig<TypeParam>>();
                 this->configurator_default.setAlgorithmConfig(ac);
-                auto algorithm =
-                    std::dynamic_pointer_cast<VibwaAlgorithmConfig<TypeParam>>(
-                        this->configurator_default.getAlgorithmConfig()
-                    );
+                auto algorithm = std::dynamic_pointer_cast<VibwaAlgorithmConfig<TypeParam>>(
+                    this->configurator_default.getAlgorithmConfig()
+                );
                 ASSERT_EQ(*algorithm, *ac);
             }
 

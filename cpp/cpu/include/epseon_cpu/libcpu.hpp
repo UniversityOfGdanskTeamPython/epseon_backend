@@ -2,8 +2,7 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#if defined(_DEBUG) && \
-    (defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__))
+#if defined(_DEBUG) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__))
 // Workaround for a VS 2022 issue.
 // NOTE: This workaround knowingly violates the Python.h include order requirement:
 // https://docs.python.org/3/c-api/intro.html#include-files

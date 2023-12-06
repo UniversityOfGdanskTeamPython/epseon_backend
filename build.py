@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -17,8 +18,7 @@ class Builder:
         ("spdlog", "v1.12.0"),
         ("pybind11", "v2.11.1"),
         ("fmt", "10.1.1"),
-        ("vma", "v3.0.1"),  # vma and vma_hpp have to be the same version.
-        ("vma_hpp", "v3.0.1"),
+        ("vma_hpp", "v3.0.1-3"),
     )
 
     def __init__(self) -> None:
@@ -33,7 +33,7 @@ class Builder:
         if not (THIS_DIR / ".git").exists():
             return
 
-        self.git("submodule", "init")
+        self.git("submodule", "update", "--init", "--recursive")
         for dependency_name, dependency_tag in self.DEPS:
             self.git(
                 "-C",
@@ -85,6 +85,7 @@ class Builder:
                     "import cmake;cmake.cmake()",
                     *arg,
                 ],
+                env=os.environ,
                 cwd=self.repo_path.as_posix(),
                 capture_output=True,
                 check=True,

@@ -77,8 +77,7 @@ namespace epseon {
             typedef TaskHandle<float>  TaskHandleFloat32;
             typedef TaskHandle<double> TaskHandleFloat64;
 
-            typedef std::variant<TaskHandleFloat32, TaskHandleFloat64>
-                TaskHandleVariant;
+            typedef std::variant<TaskHandleFloat32, TaskHandleFloat64> TaskHandleVariant;
 
             class MorsePotentialConfig {
               private:
@@ -86,8 +85,7 @@ namespace epseon {
 
               public: /* Public constructors. */
                 // Member-wise constructor.
-                MorsePotentialConfig(cpp::MorsePotentialConfig<double>&& configuration
-                ) :
+                MorsePotentialConfig(cpp::MorsePotentialConfig<double>&& configuration) :
                     configuration(configuration) {}
 
                 // Default constructor.
@@ -103,8 +101,7 @@ namespace epseon {
                 MorsePotentialConfig(MorsePotentialConfig&&) noexcept = default;
 
                 // Move assignment operator.
-                MorsePotentialConfig&
-                operator=(MorsePotentialConfig&&) noexcept = default;
+                MorsePotentialConfig& operator=(MorsePotentialConfig&&) noexcept = default;
 
               public: /* Public methods. */
                 static MorsePotentialConfig create(
@@ -127,9 +124,7 @@ namespace epseon {
                 std::shared_ptr<cpp::TaskConfigurator<FP>> configurator = {};
 
               public:
-                TaskConfigurator(
-                    std::shared_ptr<cpp::TaskConfigurator<FP>> configurator_
-                ) :
+                TaskConfigurator(std::shared_ptr<cpp::TaskConfigurator<FP>> configurator_) :
                     configurator(configurator_) {}
 
                 // Copy constructor.
@@ -163,21 +158,18 @@ namespace epseon {
                     uint32_t group_size,
                     uint32_t allocation_block_size
                 ) {
-                    this->configurator->setHardwareConfig(
-                        std::make_shared<cpp::HardwareConfig<FP>>(
-                            potential_buffer_size, group_size, allocation_block_size
-                        )
-                    );
+                    this->configurator->setHardwareConfig(std::make_shared<cpp::HardwareConfig<FP>>(
+                        potential_buffer_size, group_size, allocation_block_size
+                    ));
                     return *this;
                 };
 
                 /* Python API - Set potential data source configuration for GPU
                  * compute task. */
-                TaskConfigurator& set_morse_potential(
-                    const std::vector<MorsePotentialConfig>& configurations
-                ) {
+                TaskConfigurator&
+                set_morse_potential(const std::vector<MorsePotentialConfig>& configurations) {
                     // Track used point count, all configs should have the same for now.
-                    std::optional<uint32_t> point_count = std::nullopt;
+                    std::optional<uint32_t>                    point_count = std::nullopt;
                     // By giving from the start necessary vector size, we will avoid
                     // reallocating it multiple times.
                     std::vector<cpp::MorsePotentialConfig<FP>> configurations_cpp(
@@ -208,11 +200,8 @@ namespace epseon {
                         // Insert new element into the back of the vector, explicitly
                         // casting to correct float type.
                         configurations_cpp.emplace_back(
-                            static_cast<FP>(
-                                element.getConfiguration().getDissociationEnergy()
-                            ),
-                            static_cast<FP>(
-                                element.getConfiguration().getEquilibriumBondDistance()
+                            static_cast<FP>(element.getConfiguration().getDissociationEnergy()),
+                            static_cast<FP>(element.getConfiguration().getEquilibriumBondDistance()
                             ),
                             static_cast<FP>(element.getConfiguration().getWellWidth()),
                             static_cast<FP>(element.getConfiguration().getMinR()),
@@ -288,17 +277,14 @@ namespace epseon {
                 template <typename FP>
                 TaskHandleVariant submit_task(const TaskConfigurator<FP>& task_config) {
                     if (!task_config.is_configured()) {
-                        throw std::runtime_error(
-                            "TaskConfigurator submitted for execution "
-                            "before fully configured."
-                        );
+                        throw std::runtime_error("TaskConfigurator submitted for execution "
+                                                 "before fully configured.");
                     }
                     auto config      = task_config.getTaskConfigurator();
                     auto task_handle = this->device->submitTask(config);
 
-                    return TaskHandleVariant{
-                        // Namespaces specified explicitly to avoid confusion.
-                        epseon::gpu::python::TaskHandle<FP>{task_handle}
+                    return TaskHandleVariant{// Namespaces specified explicitly to avoid confusion.
+                                             epseon::gpu::python::TaskHandle<FP>{task_handle}
                     };
                 }
             };

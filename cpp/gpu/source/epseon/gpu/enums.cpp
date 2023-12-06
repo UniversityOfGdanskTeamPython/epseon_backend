@@ -10,11 +10,8 @@ namespace epseon {
     namespace gpu {
         namespace cpp {
 
-            InvalidPrecisionTypeString::InvalidPrecisionTypeString(std::string_view sv
-            ) :
-                message(
-                    fmt::format("Invalid PrecisionType literal in string: \"{}\"", sv)
-                ) {}
+            InvalidPrecisionTypeString::InvalidPrecisionTypeString(std::string_view sv) :
+                message(fmt::format("Invalid PrecisionType literal in string: \"{}\"", sv)) {}
 
             const char* InvalidPrecisionTypeString::what() const noexcept {
                 return this->message.c_str();

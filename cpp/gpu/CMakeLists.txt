@@ -52,8 +52,8 @@ set(epseon_gpu_INCLUDE
     PRIVATE "${PROJECT_SOURCE_DIR}/../include"
     PRIVATE "${REPOSITORY_ROOT}/external/spdlog/include"
     PRIVATE "${REPOSITORY_ROOT}/external/fmt/include"
-    PRIVATE "${REPOSITORY_ROOT}/external/vma/include"
     PRIVATE "${REPOSITORY_ROOT}/external/vma_hpp/include"
+    PRIVATE "${REPOSITORY_ROOT}/external/vma_hpp/VulkanMemoryAllocator/include"
     PRIVATE "${REPOSITORY_ROOT}/external/pybind11/include"
     PRIVATE "${Python3_INCLUDE_DIRS}"
     PRIVATE "${Vulkan_INCLUDE_DIRS}"
@@ -61,9 +61,8 @@ set(epseon_gpu_INCLUDE
 set(epseon_gpu_LINK_LIBS
     PRIVATE dl
     PRIVATE fmt::fmt
-    PRIVATE VulkanMemoryAllocator
+    PRIVATE Vulkan::Vulkan
     PRIVATE "${Python3_LIBRARIES}"
-    PRIVATE "${Vulkan_LIBRARIES}"
 )
 target_include_directories(epseon_gpu
     ${epseon_gpu_INCLUDE}

@@ -43,19 +43,23 @@ message("Python3_RUNTIME_SABI_LIBRARY_DIRS      = '${Python3_RUNTIME_SABI_LIBRAR
 message("------------------------------------- end -------------------------------------")
 
 # fmt} is an open-source formatting library providing a fast and safe alternative to C stdio and C++ iostreams.
+message("-> Adding external dependency: fmt")
 add_subdirectory("external/fmt")
 
 # Add pybind11, C++ wrapper around Python C API.
+message("-> Adding external dependency: pybind11")
 add_subdirectory("external/pybind11")
 
 # Add Logging library as subdirectory.
+message("-> Adding external dependency: spdlog")
 add_subdirectory("external/spdlog")
 
 # Add GoogleTest as a subdirectory.
+message("-> Adding external dependency: GoogleTest")
 add_subdirectory("external/googletest")
 
-# Easy to integrate Vulkan memory allocation library.
-add_subdirectory("external/vma")
+message("-> Adding external dependency: VulkanMemoryAllocator-Hpp")
+add_subdirectory("external/vma_hpp")
 
 # Enable testing
 enable_testing()
