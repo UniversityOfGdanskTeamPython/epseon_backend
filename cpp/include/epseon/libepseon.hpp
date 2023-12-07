@@ -39,5 +39,6 @@ static_assert(
         assert(!(static_cast<bool>(EXPRESSION)))
 
 #else
-    #define LIB_EPSEON_ASSERT_TRUE
+    #define LIB_EPSEON_ASSERT_TRUE(EXPRESSION)
+    #define LIB_EPSEON_ASSERT_FALSE(EXPRESSION)
 #endif
