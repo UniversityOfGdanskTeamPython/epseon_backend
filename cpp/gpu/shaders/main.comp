@@ -1,0 +1,36 @@
+#version 450
+#extension GL_EXT_nonuniform_qualifier : require
+
+layout(local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
+
+#define BIND_BUFFER(setIndex, bindingIndex, typeName, varName)         \
+    layout(std430, set = setIndex, binding = bindingIndex) buffer typeName { \
+        float array[];                                       \
+    } varName [16]
+
+#define GET_ITEM(BUFFER, INDEX) \
+    BUFFER [gl_GlobalInvocationID.x].array[ INDEX ]
+
+
+#ifndef
+    #define BUFFER_0_SIZE 0
+#endif
+
+BIND_BUFFER(0, 0, bufferT0, buffer0);
+BIND_BUFFER(0, 1, bufferT1, buffer1);
+BIND_BUFFER(0, 2, bufferT2, buffer2);
+BIND_BUFFER(0, 3, bufferT3, buffer3);
+BIND_BUFFER(0, 4, bufferT4, buffer4);
+BIND_BUFFER(0, 5, bufferT5, buffer5);
+
+void main() {
+    for (int i = 0; i < 16500; ++i) {
+        GET_ITEM(buffer1, i) = i;
+        GET_ITEM(buffer2, i) = i;
+        GET_ITEM(buffer3, i) = i;
+        GET_ITEM(buffer4, i) = i;
+    };
+    for (int i = 0; i < 40; ++i) {
+        GET_ITEM(buffer5, i) = GET_ITEM(buffer0, i);
+    }
+}

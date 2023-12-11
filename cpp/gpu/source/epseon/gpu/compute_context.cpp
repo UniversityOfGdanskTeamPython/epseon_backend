@@ -13,30 +13,27 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <vulkan/vulkan.hpp>
 
 namespace epseon::gpu::cpp {
 
     ComputeContextState::ComputeContextState(ComputeContextState& ccs) = default;
 
-    ComputeContextState::ComputeContextState(
-        std::shared_ptr<spdlog::logger>      logger_,
-        std::shared_ptr<vk::raii::Context>   context_,
-        std::shared_ptr<vk::ApplicationInfo> application_info_,
-        std::shared_ptr<vk::raii::Instance>  instance_
-    ) :
+    ComputeContextState::ComputeContextState(std::shared_ptr<spdlog::logger>      logger_,
+                                             std::shared_ptr<vk::raii::Context>   context_,
+                                             std::shared_ptr<vk::ApplicationInfo> application_info_,
+                                             std::shared_ptr<vk::raii::Instance>  instance_) :
         logger(std::move(logger_)),
         context(std::move(context_)),
         application_info(std::move(application_info_)),
         instance(std::move(instance_)) {}
 
-    ComputeContext::ComputeContext(
-        std::shared_ptr<spdlog::logger>      logger_,
-        std::shared_ptr<vk::raii::Context>   context_,
-        std::shared_ptr<vk::ApplicationInfo> application_info_,
-        std::shared_ptr<vk::raii::Instance>  instance_
-    ) :
-        state(std::make_shared<ComputeContextState>(logger_, context_, application_info_, instance_)
-        ) {}
+    ComputeContext::ComputeContext(std::shared_ptr<spdlog::logger>      logger_,
+                                   std::shared_ptr<vk::raii::Context>   context_,
+                                   std::shared_ptr<vk::ApplicationInfo> application_info_,
+                                   std::shared_ptr<vk::raii::Instance>  instance_) :
+        state(std::make_shared<ComputeContextState>(
+            logger_, context_, application_info_, instance_)) {}
 
     std::shared_ptr<ComputeContext> ComputeContext::create(uint32_t version) {
         auto logger = spdlog::get("_libepseon_gpu");
@@ -47,23 +44,16 @@ namespace epseon::gpu::cpp {
         auto context = std::make_shared<vk::raii::Context>();
 
         uint32_t apiVersion = context->enumerateInstanceVersion();
-        if (apiVersion < VK_API_VERSION_1_3) {
-            logger->warn(
-                "Unsupported Vulkan version: {}", common::vulkan_version_to_string(apiVersion)
-            );
-        } else if (apiVersion < VK_API_VERSION_1_1) {
-            auto str = fmt::format(
-                "Insufficient Vulkan version {} try updating your drivers or "
-                "SDK.",
-                common::vulkan_version_to_string(apiVersion)
-            );
+        if (apiVersion < vk::ApiVersion12) {
+            auto str = fmt::format("Insufficient Vulkan version {} (Vulkan 1.2 required) "
+                                   "try updating your drivers or SDK.",
+                                   common::vulkan_version_to_string(apiVersion));
             logger->critical(str);
 
             throw std::runtime_error(str);
         } else {
-            logger->info(
-                "Discovered Vulkan version: {}", common::vulkan_version_to_string(apiVersion)
-            );
+            logger->info("Discovered Vulkan version: {}",
+                         common::vulkan_version_to_string(apiVersion));
         }
 
         auto applicationInfo = std::make_shared<vk::ApplicationInfo>();
@@ -71,7 +61,7 @@ namespace epseon::gpu::cpp {
             .setPApplicationName("libepseon_gpu")
             .setEngineVersion(version)
             .setPEngineName("libepseon_gpu")
-            .setApiVersion(VK_API_VERSION_1_1);
+            .setApiVersion(vk::ApiVersion12);
 
         std::vector<const char*> instanceExtensions{};
 
@@ -80,8 +70,7 @@ namespace epseon::gpu::cpp {
                                       .setPEnabledExtensionNames(instanceExtensions)
                                       .setPApplicationInfo(applicationInfo.get());
         auto instance = std::make_shared<vk::raii::Instance>(
-            std::move(context->createInstance(instanceCreateInfo))
-        );
+            std::move(context->createInstance(instanceCreateInfo)));
 
         return std::make_shared<ComputeContext>(logger, context, applicationInfo, instance);
     }

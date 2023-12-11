@@ -42,7 +42,7 @@
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
     "editor.codeActionsOnSave": {
-        "source.fixAll": true
+        "source.fixAll": "always"
     },
     "python.analysis.typeCheckingMode": "basic",
     "python.analysis.fixAll": ["source.convertImportFormat"],
@@ -96,5 +96,6 @@
     "clangd.arguments": [
         "--compile-commands-dir=./build/",
         "--query-driver=/usr/bin/g++"
-    ]
+    ],
+    "clang-format.language.glsl.enable": true
 }

@@ -18,7 +18,8 @@ AllowShortIfStatementsOnASingleLine: Never
 AlwaysBreakTemplateDeclarations: Yes
 IndentPPDirectives: BeforeHash
 PPIndentWidth: 4
-AlignAfterOpenBracket: BlockIndent
+ContinuationIndentWidth: 4
+AlignAfterOpenBracket: Align
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 BinPackParameters: false
@@ -29,7 +30,16 @@ AlignEscapedNewlines: Left
 AlignOperands: AlignAfterOperator
 AllowShortEnumsOnASingleLine: false
 AllowShortLambdasOnASingleLine: Empty
-BreakBeforeBraces: Attach
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterFunction: false
+    AfterClass: false
+    AfterControlStatement: Never
+    AfterEnum: false
+    AfterStruct: false
+    AfterUnion: false
+    BeforeCatch: false
+    BeforeElse: false
 BreakConstructorInitializers: AfterColon
 BreakStringLiterals: true
 MaxEmptyLinesToKeep: 1

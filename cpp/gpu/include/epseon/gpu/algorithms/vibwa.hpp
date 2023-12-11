@@ -11,6 +11,7 @@
 #include "epseon/gpu/task_handle.hpp"
 #include "vk_mem_alloc_handles.hpp"
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -19,6 +20,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <sys/types.h>
 #include <unistd.h>
@@ -26,6 +28,7 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
@@ -54,6 +57,24 @@ namespace epseon::gpu::cpp {
             Algorithm<FP>() {}
 
       public: /* Public methods. */
+        struct Buffer {};
+
+        struct StorageBuffer : public Buffer {};
+
+        struct UniformBuffer : public Buffer {};
+
+        // Buffer which have to be transferred from host.
+        // In reality this should contain to actual buffers:
+        //  - one host visible
+        //  - one device local
+        struct InputBuffer : public Buffer {};
+
+        // Buffer which should be only accessible from GPU.
+        struct DeviceLocalBuffer : public Buffer {};
+
+        // Buffer which should be writable by GPU and readable by CPU.
+        struct OutputBuffer : public Buffer {};
+
         struct ShaderResources {
             std::shared_ptr<vma::raii::Allocator> allocator = {};
 
@@ -150,10 +171,8 @@ namespace epseon::gpu::cpp {
             }
 
           public:
-            static ShaderResources create(
-                std::shared_ptr<vma::raii::Allocator> allocator,
-                const ShaderBuffersRequirements<FP>&  requirements
-            ) {
+            static ShaderResources create(std::shared_ptr<vma::raii::Allocator> allocator,
+                                          const ShaderBuffersRequirements<FP>&  requirements) {
                 ShaderResources resources{allocator};
 
                 resources.stagingBuffers.reserve(requirements.stagingBuffersCount);
@@ -162,8 +181,7 @@ namespace epseon::gpu::cpp {
 
                 resources.gpuOnlyStorageBuffers.reserve(requirements.gpuOnlyStorageBuffersCount);
                 resources.gpuOnlyStorageBuffersAllocations.reserve(
-                    requirements.gpuOnlyStorageBuffersCount
-                );
+                    requirements.gpuOnlyStorageBuffersCount);
 
                 resources.outputBuffers.reserve(requirements.outputBuffersCount);
                 resources.outputBuffersAllocations.reserve(requirements.outputBuffersCount);
@@ -179,12 +197,9 @@ namespace epseon::gpu::cpp {
                             .setUsage(vk::BufferUsageFlagBits::eTransferSrc),
                         vma::AllocationCreateInfo()
                             .setUsage(vma::MemoryUsage::eAuto)
-                            .setFlags(
-                                vma::AllocationCreateFlagBits::eHostAccessSequentialWrite |
-                                vma::AllocationCreateFlagBits::eMapped
-                            ),
-                        &info
-                    );
+                            .setFlags(vma::AllocationCreateFlagBits::eHostAccessSequentialWrite |
+                                      vma::AllocationCreateFlagBits::eMapped),
+                        &info);
 
                     resources.stagingBuffers.push_back(std::move(buffer));
                     resources.stagingBuffersAllocations.push_back(std::move(allocation));
@@ -195,14 +210,11 @@ namespace epseon::gpu::cpp {
                     auto [buffer, allocation] = allocator->createBuffer(
                         vk::BufferCreateInfo()
                             .setSize(requirements.getGpuOnlyStorageBufferSizeBytes())
-                            .setUsage(
-                                vk::BufferUsageFlagBits::eTransferDst |
-                                vk::BufferUsageFlagBits::eStorageBuffer
-                            ),
+                            .setUsage(vk::BufferUsageFlagBits::eTransferDst |
+                                      vk::BufferUsageFlagBits::eStorageBuffer),
                         vma::AllocationCreateInfo()
                             .setUsage(vma::MemoryUsage::eAuto)
-                            .setFlags(vma::AllocationCreateFlagBits::eDedicatedMemory)
-                    );
+                            .setFlags(vma::AllocationCreateFlagBits::eDedicatedMemory));
 
                     resources.gpuOnlyStorageBuffers.push_back(std::move(buffer));
                     resources.gpuOnlyStorageBuffersAllocations.push_back(std::move(allocation));
@@ -217,12 +229,9 @@ namespace epseon::gpu::cpp {
                             .setUsage(vk::BufferUsageFlagBits::eStorageBuffer),
                         vma::AllocationCreateInfo()
                             .setUsage(vma::MemoryUsage::eAuto)
-                            .setFlags(
-                                vma::AllocationCreateFlagBits::eHostAccessRandom |
-                                vma::AllocationCreateFlagBits::eMapped
-                            ),
-                        &info
-                    );
+                            .setFlags(vma::AllocationCreateFlagBits::eHostAccessRandom |
+                                      vma::AllocationCreateFlagBits::eMapped),
+                        &info);
 
                     resources.outputBuffers.push_back(std::move(buffer));
                     resources.outputBuffersAllocations.push_back(std::move(allocation));
@@ -242,6 +251,8 @@ namespace epseon::gpu::cpp {
             std::vector<vk::DescriptorSetLayout>       descriptorVkSetLayouts = {};
             std::shared_ptr<vk::raii::DescriptorPool>  descriptorPool         = {};
             std::vector<vk::raii::DescriptorSet>       descriptorSets         = {};
+            std::shared_ptr<vk::raii::PipelineLayout>  pipelineLayout         = {};
+            std::shared_ptr<vk::raii::Pipeline>        computePipeline        = {};
 
           private:
             explicit ComputeBatchResources(vma::raii::Allocator&& allocator) :
@@ -281,12 +292,10 @@ namespace epseon::gpu::cpp {
 
             ~ComputeBatchResources() = default;
 
-            static ComputeBatchResources create(
-                uint32_t                        vulkanApiVersion,
-                const vk::raii::Instance&       instance,
-                const vk::raii::PhysicalDevice& physicalDevice,
-                const vk::raii::Device&         logicalDevice
-            ) {
+            static ComputeBatchResources create(uint32_t                        vulkanApiVersion,
+                                                const vk::raii::Instance&       instance,
+                                                const vk::raii::PhysicalDevice& physicalDevice,
+                                                const vk::raii::Device&         logicalDevice) {
                 auto functions = vma::VulkanFunctions();
 
                 functions.setVkGetInstanceProcAddr(instance.getDispatcher()->vkGetInstanceProcAddr)
@@ -306,8 +315,7 @@ namespace epseon::gpu::cpp {
                     // Trust me I know what I am doing - vma::raii::Allocator is a transparent
                     // wrapper.
                     static_cast< // NOLINT: cppcoreguidelines-pro-type-static-cast-downcast
-                        vma::raii::Allocator&&>(allocator)
-                };
+                        vma::raii::Allocator&&>(allocator)};
 
                 return resources;
             }
@@ -318,8 +326,7 @@ namespace epseon::gpu::cpp {
 
                 for (const auto& requirementStruct : requirements) {
                     shaderResources.emplace_back(
-                        ShaderResources::create(allocator, requirementStruct)
-                    );
+                        ShaderResources::create(allocator, requirementStruct));
                 }
             }
 
@@ -355,8 +362,7 @@ namespace epseon::gpu::cpp {
                     if (expectedGpuOnlyBufferCount != 0 &&
                         gpuOnlyStorageBuffersSize != expectedGpuOnlyBufferCount) {
                         throw std::runtime_error(
-                            "All shader resources must have same GPU only buffer count."
-                        );
+                            "All shader resources must have same GPU only buffer count.");
                     }
 #endif
                     expectedGpuOnlyBufferCount = gpuOnlyStorageBuffersSize;
@@ -383,8 +389,7 @@ namespace epseon::gpu::cpp {
                     if (expectedOutputBufferCount != 0 &&
                         outputBuffersSize != expectedOutputBufferCount) {
                         throw std::runtime_error(
-                            "All shader resources must have same GPU only buffer count."
-                        );
+                            "All shader resources must have same GPU only buffer count.");
                     }
 #endif
                     expectedOutputBufferCount = outputBuffersSize;
@@ -412,8 +417,17 @@ namespace epseon::gpu::cpp {
                     vk::DescriptorSetAllocateInfo()
                         .setDescriptorPool(getDescriptorPool())
                         .setDescriptorSetCount(getDescriptorSetCount())
-                        .setSetLayouts(getVkDescriptorSetLayouts())
-                ));
+                        .setSetLayouts(getVkDescriptorSetLayouts())));
+            }
+
+            std::vector<vk::DescriptorSet> getDescriptorSets() {
+                std::vector<vk::DescriptorSet> sets{};
+                sets.reserve(descriptorSets.size());
+
+                for (auto& descriptorSet : descriptorSets) {
+                    sets.push_back(*descriptorSet);
+                }
+                return sets;
             }
 
           private:
@@ -431,9 +445,8 @@ namespace epseon::gpu::cpp {
                     // We can specify upfront our needs at runtime, but we can't deduce them at
                     // compile time. Reserving memory for exact number of elements before
                     // push_back() will allow us to avoid resource reallocation.
-                    descriptorSetLayoutBindings.reserve(
-                        expectedGpuOnlyBufferCount + expectedOutputBufferCount
-                    );
+                    descriptorSetLayoutBindings.reserve(expectedGpuOnlyBufferCount +
+                                                        expectedOutputBufferCount);
 
                     for (uint32_t binding = 0; binding < expectedGpuOnlyBufferCount; binding++) {
                         descriptorSetLayoutBindings.push_back(
@@ -441,8 +454,7 @@ namespace epseon::gpu::cpp {
                                 .setBinding(binding)
                                 .setDescriptorCount(getShaderCount())
                                 .setDescriptorType(getGpuOnlyBufferDescriptorType())
-                                .setStageFlags({vk::ShaderStageFlagBits::eCompute})
-                        );
+                                .setStageFlags({vk::ShaderStageFlagBits::eCompute}));
                     }
                     LIB_EPSEON_ASSERT_TRUE(!descriptorSetLayoutBindings.empty());
 
@@ -454,8 +466,7 @@ namespace epseon::gpu::cpp {
                                 .setBinding(binding)
                                 .setDescriptorCount(getShaderCount())
                                 .setDescriptorType(getOutputBufferDescriptorType())
-                                .setStageFlags({vk::ShaderStageFlagBits::eCompute})
-                        );
+                                .setStageFlags({vk::ShaderStageFlagBits::eCompute}));
                     }
                     LIB_EPSEON_ASSERT_TRUE(!descriptorSetLayoutBindings.empty());
 
@@ -466,10 +477,7 @@ namespace epseon::gpu::cpp {
                         descriptorSetLayouts.push_back(
                             std::move(logicalDevice.createDescriptorSetLayout(
                                 vk::DescriptorSetLayoutCreateInfo().setBindings(
-                                    descriptorSetLayoutBindings
-                                )
-                            ))
-                        );
+                                    descriptorSetLayoutBindings))));
 
                         descriptorVkSetLayouts.reserve(getDescriptorSetLayoutCount());
                         for (auto& descriptorSetLayout : descriptorSetLayouts) {
@@ -489,7 +497,7 @@ namespace epseon::gpu::cpp {
                                                       .setDescriptorCount(getShaderCount())
                                                       .setType(vk::DescriptorType::eStorageBuffer));
                 }
-                for (uint32_t binding = 0; binding < getPerShaderGpuOnlyBufferCount(); binding++) {
+                for (uint32_t binding = 0; binding < getShaderOutputBufferCount(); binding++) {
                     descriptorPoolSizes.push_back(vk::DescriptorPoolSize()
                                                       .setDescriptorCount(getShaderCount())
                                                       .setType(vk::DescriptorType::eStorageBuffer));
@@ -500,9 +508,7 @@ namespace epseon::gpu::cpp {
                             vk::DescriptorPoolCreateInfo()
                                 .setFlags({vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet})
                                 .setPoolSizes(descriptorPoolSizes)
-                                .setMaxSets(getDescriptorSetCount())
-                        ))
-                    );
+                                .setMaxSets(getDescriptorSetCount()))));
                 }
             }
 
@@ -520,8 +526,7 @@ namespace epseon::gpu::cpp {
 
                 void fillBufferInfoVector(
                     const std::vector<ShaderResources>&               shaderResources,
-                    std::function<vk::Buffer(const ShaderResources&)> bufferGetter
-                ) {
+                    std::function<vk::Buffer(const ShaderResources&)> bufferGetter) {
                     uint32_t resourceCount = shaderResources.size();
                     bufferInfo.reserve(resourceCount);
                     bufferInfo.resize(resourceCount);
@@ -554,14 +559,11 @@ namespace epseon::gpu::cpp {
                     WriteDescriptorSet& write       = descriptorSetWrites[binding];
                     uint32_t            bufferIndex = binding;
                     write.fillBufferInfoVector(
-                        shaderResources,
-                        [bufferIndex](const ShaderResources& resource) {
-                            LIB_EPSEON_ASSERT_TRUE(
-                                bufferIndex < resource.gpuOnlyStorageBuffers.size()
-                            );
+                        shaderResources, [bufferIndex](const ShaderResources& resource) {
+                            LIB_EPSEON_ASSERT_TRUE(bufferIndex <
+                                                   resource.gpuOnlyStorageBuffers.size());
                             return resource.gpuOnlyStorageBuffers[bufferIndex];
-                        }
-                    );
+                        });
                     write.writeDescriptorSet.setDstSet(*descriptorSet)
                         .setDstBinding(binding)
                         .setBufferInfo(write.bufferInfo)
@@ -575,12 +577,10 @@ namespace epseon::gpu::cpp {
                     WriteDescriptorSet& write       = descriptorSetWrites[binding];
                     uint32_t            bufferIndex = binding - outputBufferBindingOffset;
                     write.fillBufferInfoVector(
-                        shaderResources,
-                        [bufferIndex](const ShaderResources& resource) {
+                        shaderResources, [bufferIndex](const ShaderResources& resource) {
                             LIB_EPSEON_ASSERT_TRUE(bufferIndex < resource.outputBuffers.size());
                             return resource.outputBuffers[bufferIndex];
-                        }
-                    );
+                        });
                     write.writeDescriptorSet.setDstSet(*descriptorSet)
                         .setDstBinding(binding)
                         .setBufferInfo(write.bufferInfo)
@@ -600,6 +600,74 @@ namespace epseon::gpu::cpp {
                     }
                 }
             }
+
+            std::vector<uint32_t> getShaderCode() {
+                std::string filename = "cpp/gpu/shaders/main.comp.spv";
+
+                std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+                if (!file.is_open()) {
+                    throw std::runtime_error("Failed to open file: " + filename);
+                }
+
+                uint32_t              fileSize = static_cast<size_t>(file.tellg());
+                std::vector<uint32_t> buffer(fileSize);
+
+                file.seekg(0);
+                file.read(
+                    reinterpret_cast<char*>( // NOLINT: cppcoreguidelines-pro-type-reinterpret-cast
+                        buffer.data()),
+                    fileSize);
+
+                file.close();
+                return buffer;
+            }
+
+            void createComputePipeline(const vk::raii::Device& logicalDevice) {
+
+                auto shaderCode = getShaderCode();
+                auto shaderModule =
+                    logicalDevice.createShaderModule(vk::ShaderModuleCreateInfo()
+                                                         .setPCode(shaderCode.data())
+                                                         .setCodeSize(shaderCode.size()));
+
+                this->pipelineLayout = std::make_shared<vk::raii::PipelineLayout>(std::move(
+                    logicalDevice.createPipelineLayout(vk::PipelineLayoutCreateInfo().setSetLayouts(
+                        getVkDescriptorSetLayouts()))));
+
+                this->computePipeline = std::make_shared<vk::raii::Pipeline>(
+                    std::move(logicalDevice.createComputePipeline(
+                        nullptr,
+                        vk::ComputePipelineCreateInfo()
+                            .setStage(vk::PipelineShaderStageCreateInfo()
+                                          .setStage(vk::ShaderStageFlagBits::eCompute)
+                                          .setModule(*shaderModule)
+                                          .setPName("main"))
+                            .setLayout(*getPipelineLayout()))));
+            }
+
+            vk::raii::PipelineLayout& getPipelineLayout() {
+                return *this->pipelineLayout;
+            }
+
+            vk::raii::Pipeline& getComputePipeline() {
+                return *this->computePipeline;
+            }
+
+            void recordBufferTransfers(vk::raii::CommandBuffer& commandBuffer) {
+                for (ShaderResources& resource : this->shaderResources) {}
+            }
+
+            void validateResult() {
+                for (ShaderResources& resource : this->shaderResources) {
+                    auto&            info = resource.outputBuffersAllocationsInfos.front();
+                    std::span<float> data{static_cast<float*>(info.pMappedData),
+                                          static_cast<float*>(info.pMappedData) + 40};
+                    for (uint32_t index = 0; index < data.size(); index++) {
+                        auto value = data[index];
+                    }
+                }
+            }
         };
 
         virtual void run(const std::stop_token& stop_token, TaskHandle<FP>* handle) {
@@ -608,7 +676,7 @@ namespace epseon::gpu::cpp {
             }
 
             const auto& physicalDevice = handle->getDeviceInterface().getPhysicalDevice();
-            auto        logicalDevice  = createLogicalDevice(physicalDevice);
+            auto [logicalDevice, queueFamilyIndex] = createLogicalDevice(physicalDevice);
             const auto& compute_context_state =
                 handle->getDeviceInterface().getComputeContextState();
 
@@ -622,91 +690,198 @@ namespace epseon::gpu::cpp {
                 handle->getDeviceInterface().getComputeContextState().getVulkanApiVersion(),
                 compute_context_state.getVkInstance(),
                 physicalDevice,
-                logicalDevice
-            );
+                logicalDevice);
             auto requirements = configurator.getShaderBufferRequirements();
             resources.allocateResources(requirements);
             resources.createDescriptorSets(logicalDevice);
             resources.updateDescriptorSets(logicalDevice);
+            resources.createComputePipeline(logicalDevice);
 
             if (stop_token.stop_requested()) {
                 return;
             }
 
+            CommandBufferResources commandBufferResources =
+                CommandBufferResources::create(logicalDevice, queueFamilyIndex);
+
+            vk::raii::CommandBuffer& commandBuffer = commandBufferResources.getCommandBuffer(0);
+
+            auto inputBarrier = vk::MemoryBarrier(vk::AccessFlagBits::eHostWrite,
+                                                  vk::AccessFlagBits::eTransferRead);
+            auto outputBarrier =
+                vk::MemoryBarrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eHostRead);
+
+            commandBuffer.begin({});
+            commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute,
+                                       *resources.getComputePipeline());
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                             *resources.getPipelineLayout(),
+                                             0,
+                                             resources.getDescriptorSets(),
+                                             nullptr);
+
+            // Ensure that all host writes happened before transfer to GPU.
+            commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eHost,
+                                          vk::PipelineStageFlagBits::eTransfer,
+                                          {},
+                                          inputBarrier,
+                                          {},
+                                          {});
+
+            resources.recordBufferTransfers(commandBuffer);
+
+            commandBuffer.dispatch(resources.getShaderCount(), 1, 1);
+            commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
+                                          vk::PipelineStageFlagBits::eAllCommands,
+                                          {},
+                                          outputBarrier,
+                                          {},
+                                          {});
+            commandBuffer.end();
+
+            auto fence = logicalDevice.createFence({});
+
+            commandBufferResources.getQueue().submit(
+                vk::SubmitInfo().setCommandBufferCount(1).setCommandBuffers(*commandBuffer),
+                *fence);
+
+            const uint64_t fiveSeconds = 5000000000UL /* nanoseconds */;
+
+            auto result = logicalDevice.waitForFences({*fence}, true, fiveSeconds);
+            resources.validateResult();
             std::cout << "Thread finished" << std::endl;
         }
 
         uint32_t selectQueueFamilyIndex(const vk::raii::PhysicalDevice& physicalDevice) {
-            uint32_t queue_family_index = -1;
+            uint32_t queueFamilyIndex = -1;
 
             for (auto i = 0; const auto& queue : physicalDevice.getQueueFamilyProperties()) {
                 if ((queue.queueFlags & vk::QueueFlagBits::eCompute) &&
                     (queue.queueFlags & vk::QueueFlagBits::eTransfer)) {
-                    queue_family_index = i;
+                    queueFamilyIndex = i;
                     break;
                 }
                 i++;
             }
-            LIB_EPSEON_ASSERT_TRUE(queue_family_index != -1);
-            return queue_family_index;
+            LIB_EPSEON_ASSERT_TRUE(queueFamilyIndex != -1);
+            return queueFamilyIndex;
         }
 
-        vk::raii::Device createLogicalDevice(const vk::raii::PhysicalDevice& physicalDevice) {
+        std::pair<vk::raii::Device, uint32_t>
+        createLogicalDevice(const vk::raii::PhysicalDevice& physicalDevice) {
             // Exclusive transfer Queue in some GPUs, we may use it in
             // future.
-            uint32_t             queue_index      = selectQueueFamilyIndex(physicalDevice);
-            std::array<float, 1> queue_priorities = {1.0F};
+            uint32_t             queueIndex      = selectQueueFamilyIndex(physicalDevice);
+            std::array<float, 1> queuePriorities = {1.0F};
             std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos{
                 vk::DeviceQueueCreateInfo()
-                    .setQueueFamilyIndex(queue_index)
-                    .setQueueCount(1)
-                    .setPQueuePriorities(queue_priorities.data())
-            };
+                    .setQueueFamilyIndex(queueIndex)
+                    .setQueuePriorities(queuePriorities)};
 
-            std::vector<const char*> required_device_extensions{};
+            std::vector<const char*> requiredDeviceExtensions{};
+
+            auto featuresChain =
+                physicalDevice.getFeatures2<vk::PhysicalDeviceFeatures2,
+                                            vk::PhysicalDeviceDescriptorIndexingFeatures>();
+
+            auto deviceFeatures = featuresChain.get<vk::PhysicalDeviceFeatures2>();
+            if (!static_cast<bool>(
+                    deviceFeatures.features.shaderStorageBufferArrayDynamicIndexing)) {
+                std::cout
+                    << "Warning: shaderStorageBufferArrayDynamicIndexing feature not available."
+                    << std::endl;
+            }
+
+            auto descriptorIndexingFeatures =
+                featuresChain.get<vk::PhysicalDeviceDescriptorIndexingFeatures>();
+
+            if (!static_cast<bool>(
+                    descriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing)) {
+                std::cout
+                    << "Warning: shaderStorageBufferArrayNonUniformIndexing feature not available."
+                    << std::endl;
+            } else {
+                requiredDeviceExtensions.push_back("VK_EXT_descriptor_indexing");
+            }
+            LIB_EPSEON_ASSERT_TRUE(deviceFeatures.pNext != nullptr);
+            deviceFeatures.setPNext(&descriptorIndexingFeatures);
 
             auto logicalDevice = physicalDevice.createDevice(
                 vk::DeviceCreateInfo()
+                    .setPNext(&deviceFeatures)
                     .setQueueCreateInfos(queueCreateInfos)
-                    .setPEnabledExtensionNames(required_device_extensions)
-            );
-            return std::move(logicalDevice);
+                    .setPEnabledExtensionNames(requiredDeviceExtensions));
+
+            return {std::move(logicalDevice), queueIndex};
         }
 
-        std::vector<vk::raii::DescriptorSet> allocateDescriptorSets(
-            vk::raii::Device& logical_device, uint32_t descriptorCount, uint32_t binding
-        ) {
-            constexpr uint32_t descriptorSetCount = 0;
+        class CommandBufferResources {
+            vk::raii::CommandPool                commandPool;
+            std::vector<vk::raii::CommandBuffer> commandBuffers;
+            vk::raii::Queue                      commandQueue;
 
-            std::array<vk::DescriptorSetLayoutBinding, 1> descriptorSetLayoutBindings{
-                vk::DescriptorSetLayoutBinding()
-                    .setBinding(0)
-                    .setDescriptorCount(descriptorCount)
-                    .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-                    .setStageFlags({vk::ShaderStageFlagBits::eCompute})
-            };
+          public:
+            // Default constructor.
+            CommandBufferResources() = delete;
 
-            auto descriptorSetLayout = logical_device.createDescriptorSetLayout(
-                vk::DescriptorSetLayoutCreateInfo().setBindings(descriptorSetLayoutBindings)
-            );
+            // Copy constructor.
+            CommandBufferResources(const CommandBufferResources&) = delete;
 
-            std::array<vk::DescriptorPoolSize, 1> descriptorPoolSizes{
-                vk::DescriptorPoolSize()
-                    .setDescriptorCount(descriptorCount)
-                    .setType(vk::DescriptorType::eStorageBuffer)
-            };
+            // Copy assignment operator.
+            CommandBufferResources& operator=(const CommandBufferResources&) = delete;
 
-            auto descriptorPool =
-                logical_device.createDescriptorPool(vk::DescriptorPoolCreateInfo()
-                                                        .setPoolSizes(descriptorPoolSizes)
-                                                        .setMaxSets(descriptorSetCount));
+            // Move constructor.
+            CommandBufferResources(CommandBufferResources&& other) noexcept = delete;
 
-            return logical_device.allocateDescriptorSets(
-                vk::DescriptorSetAllocateInfo()
-                    .setDescriptorPool(*descriptorPool)
-                    .setSetLayouts(*descriptorSetLayout)
-                    .setDescriptorSetCount(descriptorSetCount)
-            );
-        }
+            // Move assignment operator.
+            CommandBufferResources& operator=(CommandBufferResources&& other) noexcept = delete;
+
+            ~CommandBufferResources() = default;
+
+            [[nodiscard]] static CommandBufferResources create(vk::raii::Device& logicalDevice,
+                                                               uint32_t          queueFamilyIndex) {
+                vk::raii::CommandPool commandPool = logicalDevice.createCommandPool(
+                    vk::CommandPoolCreateInfo()
+                        .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+                        .setQueueFamilyIndex(queueFamilyIndex));
+                std::vector<vk::raii::CommandBuffer> commandBuffers =
+                    logicalDevice.allocateCommandBuffers(
+                        vk::CommandBufferAllocateInfo()
+                            .setCommandBufferCount(1)
+                            .setCommandPool(*commandPool)
+                            .setLevel(vk::CommandBufferLevel::ePrimary));
+                vk::raii::Queue commandQueue = logicalDevice.getQueue(queueFamilyIndex, 0);
+
+                return CommandBufferResources(
+                    std::move(commandPool), std::move(commandBuffers), std::move(commandQueue));
+            }
+
+          private:
+            explicit CommandBufferResources(vk::raii::CommandPool                commandPool_,
+                                            std::vector<vk::raii::CommandBuffer> commandBuffers_,
+                                            vk::raii::Queue                      commandQueue_) :
+                commandPool(std::move(commandPool_)),
+                commandBuffers(std::move(commandBuffers_)),
+                commandQueue(std::move(commandQueue_)) {}
+
+          public:
+            [[nodiscard]] const vk::raii::CommandBuffer& getCommandBuffer(uint32_t index) const {
+                return this->commandBuffers[index];
+            }
+
+            [[nodiscard]] vk::raii::CommandBuffer& getCommandBuffer(uint32_t index) {
+                return this->commandBuffers[index];
+            }
+
+            [[nodiscard]] const vk::raii::Queue& getQueue() const {
+                return this->commandQueue;
+            }
+
+            [[nodiscard]] vk::raii::Queue& getQueue() {
+                return this->commandQueue;
+            }
+        };
     };
 } // namespace epseon::gpu::cpp
+
+#include "epseon/gpu/compute/shader.hpp"

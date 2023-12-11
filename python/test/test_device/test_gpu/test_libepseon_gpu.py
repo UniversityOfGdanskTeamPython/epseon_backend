@@ -175,7 +175,7 @@ class TestEpseonComputeContext:
         return (
             configurator.set_hardware_config(
                 potential_buffer_size=16500,
-                group_size=512,
+                group_size=16,
                 allocation_block_size=16 * 1024 * 1024,
             )
             .set_morse_potential(
