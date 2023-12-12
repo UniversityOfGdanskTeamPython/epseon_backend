@@ -8,6 +8,7 @@
 #include "epseon/gpu/task_configurator/algorithm_config.hpp"
 
 #include "epseon/gpu/algorithms/algorithm.hpp"
+#include "epseon/gpu/compute/vma_raii.hpp"
 #include "epseon/gpu/task_handle.hpp"
 #include "vk_mem_alloc_handles.hpp"
 #include <array>
@@ -32,17 +33,6 @@
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
-
-namespace vma::raii {
-    class Allocator : public vma::Allocator { // NOLINT: hicpp-special-member-functions
-      public:
-        using vma::Allocator::Allocator;
-
-        ~Allocator() {
-            this->destroy();
-        }
-    };
-} // namespace vma::raii
 
 namespace epseon::gpu::cpp {
 
