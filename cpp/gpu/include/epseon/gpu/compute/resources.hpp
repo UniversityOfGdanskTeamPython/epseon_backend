@@ -2,14 +2,25 @@
 
 #include "epseon/vulkan_headers.hpp"
 
+#include "epseon/gpu/compute/predecl.hpp"
+
 #include "epseon/gpu/compute/allocation.hpp"
 #include "epseon/gpu/compute/buffer.hpp"
+#include "epseon/gpu/compute/environment.hpp"
 #include "epseon/gpu/compute/layout.hpp"
 #include "epseon/gpu/compute/scaling.hpp"
 
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
 #include "vk_mem_alloc_structs.hpp"
+#include <algorithm>
+#include <cassert>
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
+
 #include <concepts>
 #include <cstdint>
 #include <memory>
@@ -19,18 +30,8 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_raii.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
 namespace epseon::gpu::cpp::resources {
-
-    template <typename T>
-    concept Concept = requires(T t, std::shared_ptr<vma::Allocator>& allocatorT) {
-        { t.iterateBuffers(allocatorT) } -> std::same_as<void>;
-    };
 
     class Base {
       public:
@@ -38,41 +39,96 @@ namespace epseon::gpu::cpp::resources {
         Base(const Base& other)     = delete;
         Base(Base&& other) noexcept = default;
 
-        virtual ~Base() = default;
+        virtual ~Base() {
+            deallocateBuffers();
+        }
 
         Base& operator=(const Base& other)     = delete;
         Base& operator=(Base&& other) noexcept = default;
 
-        template <typename CallableT>
-        void iterateBuffers(CallableT /*callable*/) {
-            throw std::runtime_error("iterateBuffers must be implemented.");
+        void prepare(std::shared_ptr<environment::Device>& devicePointer,
+                     std::shared_ptr<scaling::Base>&       scalingPointer) {
+            bind(devicePointer, scalingPointer);
+            allocateBuffers();
+            createDescriptorPool();
+            createDescriptorSets();
+            updateDescriptorSets();
         }
 
-        void bindDeviceAllocator(std::shared_ptr<vma::Allocator>& allocator) {
-            iterateBuffers([&allocator](auto& buffer) {
-                buffer.bindDeviceAllocator(allocator);
+      protected:
+        template <typename CallableT>
+        void forEachBuffer(CallableT /*callable*/) {
+            assert(false && "Missing implementation for forEachBuffer()");
+        }
+
+        void bind(std::shared_ptr<environment::Device>& devicePointer,
+                  std::shared_ptr<scaling::Base>&       scalingPointer) {
+            forEachBuffer([&devicePointer, &scalingPointer](auto& buffer) {
+                buffer.bind(devicePointer, scalingPointer);
             });
         };
 
-      private:
-        [[nodiscard]] std::vector<vk::DescriptorPoolSize> getDescriptorPoolSize() {
+        void allocateBuffers() {
+            this->forEachBuffer([](auto& buffer) {
+                buffer.allocateBuffers();
+            });
+        }
+
+        void deallocateBuffers() {
+            this->forEachBuffer([](auto& buffer) {
+                buffer.allocateBuffers();
+            });
+        }
+
+        void createDescriptorPool() {
+            auto descriptorPoolSizes = getDescriptorPoolSizes();
+            auto maxDescriptorSets   = getMaxDescriptorSets();
+
+            this->descriptorPool = std::make_shared<vk::raii::DescriptorPool>(
+                std::move(getDevice().getLogicalDevice().createDescriptorPool(
+                    vk::DescriptorPoolCreateInfo()
+                        .setFlags({vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet})
+                        .setPoolSizes(descriptorPoolSizes)
+                        .setMaxSets(maxDescriptorSets))));
+        }
+
+        [[nodiscard]] std::vector<vk::DescriptorPoolSize> getDescriptorPoolSizes() {
             std::vector<vk::DescriptorPoolSize> poolSize{};
 
             uint64_t maxPoolSizes = 0;
-            this->iterateBuffers([&maxPoolSizes](auto& /*buffer*/) {
+            this->forEachBuffer([&maxPoolSizes](auto& /*buffer*/) {
                 maxPoolSizes += 1;
             });
             poolSize.reserve(maxPoolSizes);
 
-            this->iterateBuffers([&poolSize](auto& buffer) {
+            this->forEachBuffer([&poolSize](auto& buffer) {
                 poolSize.push_back(buffer.getDescriptorPoolSize());
             });
 
             return poolSize;
         };
 
-        [[nodiscard]] std::vector<vk::raii::DescriptorSetLayout>
-        getDescriptorSetLayouts(vk::raii::Device& logicalDevice) {
+        void createDescriptorSets() {
+            auto raiiLayouts = getDescriptorSetLayouts();
+
+            std::vector<vk::DescriptorSetLayout> layouts;
+            layouts.reserve(raiiLayouts.size());
+
+            std::transform(raiiLayouts.begin(),
+                           raiiLayouts.end(),
+                           layouts.begin(),
+                           [](vk::raii::DescriptorSetLayout& val) {
+                               return *val;
+                           });
+
+            this->descriptorSets = std::move(getDevice().getLogicalDevice().allocateDescriptorSets(
+                vk::DescriptorSetAllocateInfo()
+                    .setDescriptorPool(*getDescriptorPool())
+                    .setDescriptorSetCount(getMaxDescriptorSets())
+                    .setSetLayouts(layouts)));
+        }
+
+        [[nodiscard]] std::vector<vk::raii::DescriptorSetLayout> getDescriptorSetLayouts() {
             uint32_t maxSets = getMaxDescriptorSets();
 
             std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts;
@@ -81,11 +137,12 @@ namespace epseon::gpu::cpp::resources {
             for (uint32_t setIndex = 0; setIndex < maxSets; setIndex++) {
                 auto descriptorSetLayoutBindings = getDescriptorSetLayoutBindings(setIndex);
 
-                descriptorSetLayouts.push_back(std::move(logicalDevice.createDescriptorSetLayout(
-                    vk::DescriptorSetLayoutCreateInfo()
-                        .setFlags({})
-                        .setBindings(descriptorSetLayoutBindings)
-                        .setBindingCount(descriptorSetLayoutBindings.size()))));
+                descriptorSetLayouts.push_back(
+                    std::move(getDevice().getLogicalDevice().createDescriptorSetLayout(
+                        vk::DescriptorSetLayoutCreateInfo()
+                            .setFlags({})
+                            .setBindings(descriptorSetLayoutBindings)
+                            .setBindingCount(descriptorSetLayoutBindings.size()))));
             }
 
             return descriptorSetLayouts;
@@ -94,7 +151,7 @@ namespace epseon::gpu::cpp::resources {
         [[nodiscard]] uint32_t getMaxDescriptorSets() {
             uint32_t maxSets = 0;
 
-            iterateBuffers([&maxSets](auto& buffer) {
+            forEachBuffer([&maxSets](auto& buffer) {
                 auto bufferMaxSets = buffer.getMaxDescriptorSets();
                 if (bufferMaxSets > maxSets) {
                     maxSets = bufferMaxSets;
@@ -109,12 +166,12 @@ namespace epseon::gpu::cpp::resources {
             std::vector<vk::DescriptorSetLayoutBinding> setBindings{};
 
             uint64_t maxBindings = 0;
-            iterateBuffers([&maxBindings](auto& /*buffer*/) {
+            forEachBuffer([&maxBindings](auto& /*buffer*/) {
                 maxBindings += 1;
             });
             setBindings.reserve(maxBindings);
 
-            iterateBuffers([&setBindings, setIndex](auto& buffer) {
+            forEachBuffer([&setBindings, setIndex](auto& buffer) {
                 std::optional<vk::DescriptorSetLayoutBinding> optionalBinding =
                     buffer.getDescriptorSetLayoutBindings(setIndex);
 
@@ -126,8 +183,27 @@ namespace epseon::gpu::cpp::resources {
             return setBindings;
         }
 
+      protected:
+        [[nodiscard]] environment::Device& getDevice() {
+            assert(devicePointer);
+            return *this->devicePointer;
+        }
+
+        [[nodiscard]] const environment::Device& getDevice() const {
+            assert(devicePointer);
+            return *this->devicePointer;
+        }
+
+        [[nodiscard]] vk::raii::DescriptorPool& getDescriptorPool() {
+            assert(descriptorPool);
+            return *this->descriptorPool;
+        }
+
       private:
-        std::unique_ptr<vk::raii::DescriptorPool> descriptorPool = {};
+        std::shared_ptr<vk::raii::DescriptorPool> descriptorPool = {};
+        std::vector<vk::raii::DescriptorSet>      descriptorSets = {};
+        std::shared_ptr<environment::Device>      devicePointer  = {};
+        std::shared_ptr<scaling::Base>            scalingPointer = {};
     };
 
     class Dynamic : public Base {
@@ -149,8 +225,9 @@ namespace epseon::gpu::cpp::resources {
             }
         }
 
+      protected:
         template <typename CallableT>
-        void iterateBuffers(CallableT callable) {
+        void forEachBuffer(CallableT callable) {
             for (auto& buffer : inputBuffers) {
                 callable(buffer);
             }

@@ -2,12 +2,21 @@
 
 #include "epseon/vulkan_headers.hpp"
 
+#include "epseon/gpu/compute/predecl.hpp"
+
 #include "epseon/gpu/compute/allocation.hpp"
 #include "epseon/gpu/compute/layout.hpp"
 #include "epseon/gpu/compute/scaling.hpp"
+
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
 #include "vk_mem_alloc_structs.hpp"
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
+
 #include <concepts>
 #include <cstdint>
 #include <memory>
@@ -15,13 +24,13 @@
 #include <span>
 #include <stdexcept>
 #include <tuple>
+#include <unistd.h>
 #include <utility>
 #include <vector>
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_raii.hpp>
-#include <vulkan/vulkan_structs.hpp>
+
+namespace epseon::gpu::cpp::environment {
+    class Device;
+}
 
 namespace epseon::gpu::cpp::buffer {
     template <layout::Concept layoutT>
@@ -43,16 +52,10 @@ namespace epseon::gpu::cpp::buffer {
         Base& operator=(const Base& other)     = default;
         Base& operator=(Base&& other) noexcept = default;
 
-        void bindDeviceAllocator(std::shared_ptr<vma::Allocator>& allocator) {
-            this->allocator = allocator;
-        }
-
-        [[nodiscard]] vma::Allocator& getDeviceAllocator() {
-            return *this->allocator;
-        }
-
-        [[nodiscard]] const vma::Allocator& getDeviceAllocator() const {
-            return *this->allocator;
+        void bind(std::shared_ptr<environment::Device>& devicePointer,
+                  std::shared_ptr<scaling::Base>&       scalingPointer) {
+            this->devicePointer  = devicePointer;
+            this->scalingPointer = scalingPointer;
         }
 
         [[nodiscard]] layoutT& getLayout() {
@@ -74,8 +77,9 @@ namespace epseon::gpu::cpp::buffer {
         getDescriptorSetLayoutBindings(uint32_t setIndex) const = 0;
 
       private:
-        layoutT                               layout    = {};
-        std::shared_ptr<vma::Allocator> allocator = {};
+        layoutT                              layout         = {};
+        std::shared_ptr<environment::Device> devicePointer  = {};
+        std::shared_ptr<scaling::Base>       scalingPointer = {};
     };
 
     template <layout::Concept layoutT>
@@ -83,12 +87,19 @@ namespace epseon::gpu::cpp::buffer {
       public:
         using Base<layoutT>::Base;
 
+        void bind(std::shared_ptr<environment::Device>& devicePointer,
+                  std::shared_ptr<scaling::Base>&       scalingPointer) {
+            this->devicePointer  = devicePointer;
+            this->scalingPointer = scalingPointer;
+            this->deviceBuffer.bind(devicePointer, scalingPointer);
+        }
+
         void allocateBuffers() override {
-            deviceBuffer.allocateBuffers(this->getDeviceAllocator(), this->getLayout());
+            deviceBuffer.allocateBuffers(this->getLayout());
         }
 
         void deallocateBuffers() override {
-            deviceBuffer.deallocateBuffers(this->getDeviceAllocator(), this->getLayout());
+            deviceBuffer.deallocateBuffers(this->getLayout());
         }
 
         [[nodiscard]] vk::DescriptorPoolSize getDescriptorPoolSize() const override {
@@ -118,14 +129,22 @@ namespace epseon::gpu::cpp::buffer {
       public:
         using Base<layoutT>::Base;
 
+        void bind(std::shared_ptr<environment::Device>& devicePointer,
+                  std::shared_ptr<scaling::Base>&       scalingPointer) {
+            this->devicePointer  = devicePointer;
+            this->scalingPointer = scalingPointer;
+            this->sourceBuffer.bind(devicePointer, scalingPointer);
+            this->destinationBuffer.bind(devicePointer, scalingPointer);
+        }
+
         void allocateBuffers() override {
-            sourceBuffer.allocateBuffers(this->getDeviceAllocator(), this->getLayout());
-            destinationBuffer.allocateBuffers(this->getDeviceAllocator(), this->getLayout());
+            sourceBuffer.allocateBuffers(this->getLayout());
+            destinationBuffer.allocateBuffers(this->getLayout());
         }
 
         void deallocateBuffers() override {
-            sourceBuffer.deallocateBuffers(this->getDeviceAllocator(), this->getLayout());
-            destinationBuffer.deallocateBuffers(this->getDeviceAllocator(), this->getLayout());
+            sourceBuffer.deallocateBuffers(this->getLayout());
+            destinationBuffer.deallocateBuffers(this->getLayout());
         }
 
         sourceBufferT& getSourceBuffer() {

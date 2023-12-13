@@ -2,11 +2,19 @@
 
 #include "epseon/vulkan_headers.hpp"
 
+#include "epseon/gpu/compute/predecl.hpp"
+
 #include "epseon/gpu/compute/layout.hpp"
 #include "epseon/gpu/compute/scaling.hpp"
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
 #include "vk_mem_alloc_structs.hpp"
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
+
 #include <cassert>
 #include <concepts>
 #include <cstdint>
@@ -17,11 +25,10 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_raii.hpp>
-#include <vulkan/vulkan_structs.hpp>
+
+namespace epseon::gpu::cpp::environment {
+    class Device;
+}
 
 namespace epseon::gpu::cpp::allocation {
     template <VkBufferUsageFlags       bufferUsageFlags,
@@ -32,13 +39,23 @@ namespace epseon::gpu::cpp::allocation {
         using layout_type = layoutT;
 
         [[nodiscard]] scaling::Base& getScaling() {
-            assert(scaling);
-            return *this->scaling;
+            assert(scalingPointer);
+            return *this->scalingPointer;
         }
 
         [[nodiscard]] const scaling::Base& getScaling() const {
-            assert(scaling);
-            return *this->scaling;
+            assert(scalingPointer);
+            return *this->scalingPointer;
+        }
+
+        [[nodiscard]] environment::Device& getDevice() {
+            assert(devicePointer);
+            return *this->devicePointer;
+        }
+
+        [[nodiscard]] const environment::Device& getDevice() const {
+            assert(devicePointer);
+            return *this->devicePointer;
         }
 
         [[nodiscard]] static constexpr vk::BufferUsageFlags getBufferUsageFlags() {
@@ -49,7 +66,13 @@ namespace epseon::gpu::cpp::allocation {
             return static_cast<vma::AllocationCreateFlags>(allocationFlags);
         }
 
-        void allocateBuffers(const vma::Allocator& allocator, const layoutT& layout) {
+        void bind(std::shared_ptr<environment::Device>& devicePointer,
+                  std::shared_ptr<scaling::Base>&       scalingPointer) {
+            this->devicePointer  = devicePointer;
+            this->scalingPointer = scalingPointer;
+        }
+
+        void allocateBuffers(const layoutT& layout) noexcept {
             auto bufferSizeBytes = getScaling().getAllocationTotalSizeBytes(
                 layout.getTotalSizeBytes(), layout.getBatchSize());
             auto bufferCreateInfo =
@@ -67,8 +90,8 @@ namespace epseon::gpu::cpp::allocation {
             for (uint64_t i = 0; i < bufferCount; i++) {
                 vma::AllocationInfo info{};
 
-                auto [buffer, allocation] =
-                    allocator.createBuffer(bufferCreateInfo, allocationCreateInfo, &info);
+                auto [buffer, allocation] = getDevice().getDeviceAllocator().createBuffer(
+                    bufferCreateInfo, allocationCreateInfo, &info);
 
                 buffers.push_back(std::move(buffer));
                 allocations.push_back(std::move(allocation));
@@ -76,11 +99,11 @@ namespace epseon::gpu::cpp::allocation {
             }
         }
 
-        void deallocateBuffers(const vma::Allocator& allocator, const layoutT& layout) {
+        void deallocateBuffers(const layoutT& layout) {
             auto bufferCount = getScaling().getAllocationBufferCount(layout.getBatchSize());
 
             for (uint32_t i = 0; i < bufferCount; i++) {
-                allocator.destroyBuffer(buffers[i], allocations[i]);
+                getDevice().getDeviceAllocator().destroyBuffer(buffers[i], allocations[i]);
             }
             buffers.clear();
             allocations.clear();
@@ -111,7 +134,8 @@ namespace epseon::gpu::cpp::allocation {
         std::vector<vma::Allocation>     allocations     = {};
         std::vector<vma::AllocationInfo> allocationInfos = {};
 
-        std::shared_ptr<scaling::Base> scaling = {};
+        std::shared_ptr<environment::Device> devicePointer  = {};
+        std::shared_ptr<scaling::Base>       scalingPointer = {};
     };
 
     template <layout::Concept layoutT>

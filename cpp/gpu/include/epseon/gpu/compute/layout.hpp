@@ -2,10 +2,18 @@
 
 #include "epseon/vulkan_headers.hpp"
 
+#include "epseon/gpu/compute/predecl.hpp"
+
 #include "epseon/gpu/compute/scaling.hpp"
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
 #include "vk_mem_alloc_structs.hpp"
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
+
 #include <concepts>
 #include <cstdint>
 #include <memory>
@@ -14,23 +22,8 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_raii.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
 namespace epseon::gpu::cpp::layout {
-
-    template <typename T>
-    concept Concept = requires(T t) {
-        { t.getItemCount() } -> std::same_as<uint64_t>;
-        { t.getItemSize() } -> std::same_as<uint64_t>;
-        { t.getBatchSize() } -> std::same_as<uint64_t>;
-        { t.getTotalSizeBytes() } -> std::same_as<uint64_t>;
-        { t.getSet() } -> std::same_as<uint32_t>;
-        { t.getBinding() } -> std::same_as<uint32_t>;
-    };
 
     class Base {
       public:

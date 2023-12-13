@@ -2,6 +2,8 @@
 
 #include "epseon/vulkan_headers.hpp"
 
+#include "epseon/gpu/compute/predecl.hpp"
+
 #include <concepts>
 #include <cstdint>
 #include <memory>
@@ -20,8 +22,6 @@ namespace epseon::gpu::cpp {
 
             Base& operator=(const Base&)     = default;
             Base& operator=(Base&&) noexcept = default;
-
-            [[nodiscard]] virtual std::shared_ptr<scaling::Base> sharedClone() const = 0;
         };
 
         class BufferArray : public Base {
@@ -35,10 +35,6 @@ namespace epseon::gpu::cpp {
             BufferArray& operator=(const BufferArray&)     = default;
             BufferArray& operator=(BufferArray&&) noexcept = default;
 
-            [[nodiscard]] std::shared_ptr<Base> sharedClone() const override {
-                return std::make_shared<BufferArray>(*this);
-            }
-
             [[nodiscard]] virtual uint64_t getAllocationTotalSizeBytes(uint64_t totalSizeBytes,
                                                                        uint64_t /*batchSize*/) {
                 return totalSizeBytes;
@@ -51,10 +47,6 @@ namespace epseon::gpu::cpp {
 
         class LargeBuffer : public Base {
           public:
-            [[nodiscard]] std::shared_ptr<Base> sharedClone() const override {
-                return std::make_shared<LargeBuffer>(*this);
-            }
-
             [[nodiscard]] virtual uint64_t getAllocationTotalSizeBytes(uint64_t totalSizeBytes,
                                                                        uint64_t batchSize) {
                 return totalSizeBytes * batchSize;
