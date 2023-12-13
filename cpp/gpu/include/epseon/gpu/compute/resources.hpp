@@ -183,6 +183,18 @@ namespace epseon::gpu::cpp::resources {
             return setBindings;
         }
 
+        void updateDescriptorSets() {
+            uint32_t maxSets = getMaxDescriptorSets();
+            for (uint32_t setIndex = 0; setIndex < maxSets; setIndex++) {
+                auto descriptorSetWrites = getDescriptorSetWrites(setIndex);
+            }
+        }
+
+        [[nodiscard]] std::vector<vk::WriteDescriptorSet>
+        getDescriptorSetWrites(uint32_t setIndex) {
+            return {};
+        }
+
       protected:
         [[nodiscard]] environment::Device& getDevice() {
             assert(devicePointer);

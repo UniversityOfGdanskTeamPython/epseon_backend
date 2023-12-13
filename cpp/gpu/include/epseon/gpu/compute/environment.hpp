@@ -36,6 +36,23 @@ namespace epseon::gpu::cpp::environment {
 
     class Device {
       public:
+        Device(bool                       supportsBufferArrayScaling_,
+               uint32_t                   apiVersion_,
+               vk::raii::Context&&        context_,
+               vk::raii::Instance&&       instance_,
+               vk::raii::PhysicalDevice&& physicalDevice_,
+               vk::raii::Device&&         logicalDevice_,
+               uint32_t                   queueIndex_,
+               vma::Allocator             allocator_) :
+            supportsBufferArrayScaling(supportsBufferArrayScaling_),
+            apiVersion(apiVersion_),
+            context(std::move(context_)),
+            instance(std::move(instance_)),
+            physicalDevice(std::move(physicalDevice_)),
+            logicalDevice(std::move(logicalDevice_)),
+            queueIndex(queueIndex_),
+            allocator(std::make_shared<vma::Allocator>(allocator_)) {}
+
         Device(const Device&)     = delete;
         Device(Device&&) noexcept = default;
 
@@ -94,7 +111,8 @@ namespace epseon::gpu::cpp::environment {
                                             std::move(instance),
                                             std::move(physicalDevice),
                                             std::move(deviceInfo.logicalDevice),
-                                            std::make_shared<vma::Allocator>(allocator));
+                                            deviceInfo.queueIndex,
+                                            allocator);
         }
 
       private:
@@ -186,23 +204,6 @@ namespace epseon::gpu::cpp::environment {
             assert(queueFamilyIndex != -1);
             return queueFamilyIndex;
         }
-
-        Device(bool                       supportsBufferArrayScaling_,
-               uint32_t                   apiVersion_,
-               vk::raii::Context&&        context_,
-               vk::raii::Instance&&       instance_,
-               vk::raii::PhysicalDevice&& physicalDevice_,
-               vk::raii::Device&&         logicalDevice_,
-               uint32_t                   queueIndex_,
-               vma::Allocator&&           allocator_) :
-            supportsBufferArrayScaling(supportsBufferArrayScaling_),
-            apiVersion(apiVersion_),
-            context(std::move(context_)),
-            instance(std::move(instance_)),
-            physicalDevice(std::move(physicalDevice_)),
-            logicalDevice(std::move(logicalDevice_)),
-            queueIndex(queueIndex_),
-            allocator(std::make_shared<vma::Allocator>(allocator_)) {}
 
       public:
         [[nodiscard]] std::shared_ptr<scaling::Base> getOptimalScalingPolicy() const {

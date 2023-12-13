@@ -117,7 +117,7 @@ namespace epseon::gpu::cpp::allocation {
             }
             auto bufferCount = getScaling().getAllocationBufferCount(layout.getBatchSize());
             return vk::DescriptorSetLayoutBinding()
-                .setBinding(layout.binding)
+                .setBinding(layout.getBinding())
                 .setDescriptorCount(bufferCount)
                 .setDescriptorType(vk::DescriptorType::eStorageBuffer)
                 .setStageFlags(vk::ShaderStageFlagBits::eCompute);

@@ -22,6 +22,11 @@ namespace epseon::gpu::cpp {
 
             Base& operator=(const Base&)     = default;
             Base& operator=(Base&&) noexcept = default;
+
+            [[nodiscard]] virtual uint64_t
+            getAllocationTotalSizeBytes(uint64_t totalSizeBytes, uint64_t batchSize) const = 0;
+
+            [[nodiscard]] virtual uint64_t getAllocationBufferCount(uint64_t batchSize) const = 0;
         };
 
         class BufferArray : public Base {
@@ -35,24 +40,25 @@ namespace epseon::gpu::cpp {
             BufferArray& operator=(const BufferArray&)     = default;
             BufferArray& operator=(BufferArray&&) noexcept = default;
 
-            [[nodiscard]] virtual uint64_t getAllocationTotalSizeBytes(uint64_t totalSizeBytes,
-                                                                       uint64_t /*batchSize*/) {
+            [[nodiscard]] uint64_t
+            getAllocationTotalSizeBytes(uint64_t totalSizeBytes,
+                                        uint64_t /*batchSize*/) const override {
                 return totalSizeBytes;
             }
 
-            [[nodiscard]] virtual uint64_t getAllocationBufferCount(uint64_t batchSize) {
+            [[nodiscard]] uint64_t getAllocationBufferCount(uint64_t batchSize) const override {
                 return batchSize;
             }
         };
 
         class LargeBuffer : public Base {
           public:
-            [[nodiscard]] virtual uint64_t getAllocationTotalSizeBytes(uint64_t totalSizeBytes,
-                                                                       uint64_t batchSize) {
+            [[nodiscard]] uint64_t getAllocationTotalSizeBytes(uint64_t totalSizeBytes,
+                                                               uint64_t batchSize) const override {
                 return totalSizeBytes * batchSize;
             }
 
-            [[nodiscard]] virtual uint64_t getAllocationBufferCount(uint64_t /*batchSize*/) {
+            [[nodiscard]] uint64_t getAllocationBufferCount(uint64_t /*batchSize*/) const override {
                 return 1;
             }
         };

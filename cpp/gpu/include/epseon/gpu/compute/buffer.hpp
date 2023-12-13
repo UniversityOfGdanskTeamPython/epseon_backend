@@ -151,7 +151,15 @@ namespace epseon::gpu::cpp::buffer {
             return this->sourceBuffer;
         }
 
+        const sourceBufferT& getSourceBuffer() const {
+            return this->sourceBuffer;
+        }
+
         destinationBufferT& getDestinationBuffer() {
+            return this->destinationBuffer;
+        }
+
+        const destinationBufferT& getDestinationBuffer() const {
             return this->destinationBuffer;
         }
 
