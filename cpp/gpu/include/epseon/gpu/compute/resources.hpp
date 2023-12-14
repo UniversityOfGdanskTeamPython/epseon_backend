@@ -15,6 +15,7 @@
 #include "vk_mem_alloc_structs.hpp"
 #include <algorithm>
 #include <cassert>
+#include <iterator>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
@@ -53,6 +54,10 @@ namespace epseon::gpu::cpp::resources {
             createDescriptorPool();
             createDescriptorSets();
             updateDescriptorSets();
+            createPipeline();
+            createCommandPool();
+            createCommandBuffer();
+            recordCommandBuffers();
         }
 
       protected:
@@ -109,17 +114,8 @@ namespace epseon::gpu::cpp::resources {
         };
 
         void createDescriptorSets() {
-            auto raiiLayouts = getDescriptorSetLayouts();
-
-            std::vector<vk::DescriptorSetLayout> layouts;
-            layouts.reserve(raiiLayouts.size());
-
-            std::transform(raiiLayouts.begin(),
-                           raiiLayouts.end(),
-                           layouts.begin(),
-                           [](vk::raii::DescriptorSetLayout& val) {
-                               return *val;
-                           });
+            createDescriptorSetLayouts();
+            std::vector<vk::DescriptorSetLayout> layouts = getDescriptorSetLayouts();
 
             this->descriptorSets = std::move(getDevice().getLogicalDevice().allocateDescriptorSets(
                 vk::DescriptorSetAllocateInfo()
@@ -128,24 +124,34 @@ namespace epseon::gpu::cpp::resources {
                     .setSetLayouts(layouts)));
         }
 
-        [[nodiscard]] std::vector<vk::raii::DescriptorSetLayout> getDescriptorSetLayouts() {
+        void createDescriptorSetLayouts() {
             uint32_t maxSets = getMaxDescriptorSets();
-
-            std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts;
-            descriptorSetLayouts.reserve(maxSets);
+            raiiDescriptorSetLayouts.reserve(maxSets);
 
             for (uint32_t setIndex = 0; setIndex < maxSets; setIndex++) {
                 auto descriptorSetLayoutBindings = getDescriptorSetLayoutBindings(setIndex);
 
-                descriptorSetLayouts.push_back(
+                raiiDescriptorSetLayouts.push_back(
                     std::move(getDevice().getLogicalDevice().createDescriptorSetLayout(
                         vk::DescriptorSetLayoutCreateInfo()
                             .setFlags({})
                             .setBindings(descriptorSetLayoutBindings)
                             .setBindingCount(descriptorSetLayoutBindings.size()))));
             }
+        }
 
-            return descriptorSetLayouts;
+        [[nodiscard]] std::vector<vk::DescriptorSetLayout> getDescriptorSetLayouts() {
+            std::vector<vk::DescriptorSetLayout> layouts;
+            layouts.reserve(raiiDescriptorSetLayouts.size());
+
+            std::transform(raiiDescriptorSetLayouts.begin(),
+                           raiiDescriptorSetLayouts.end(),
+                           std::back_inserter(layouts),
+                           [](vk::raii::DescriptorSetLayout& val) {
+                               return *val;
+                           });
+
+            return layouts;
         }
 
         [[nodiscard]] uint32_t getMaxDescriptorSets() {
@@ -184,15 +190,119 @@ namespace epseon::gpu::cpp::resources {
         }
 
         void updateDescriptorSets() {
-            uint32_t maxSets = getMaxDescriptorSets();
-            for (uint32_t setIndex = 0; setIndex < maxSets; setIndex++) {
-                auto descriptorSetWrites = getDescriptorSetWrites(setIndex);
-            }
+            vk::raii::Device& logicalDevice = getDevice().getLogicalDevice();
+
+            forEachBuffer([&logicalDevice, this](auto& buffer) {
+                auto     layout       = buffer.getLayout();
+                uint32_t setIndex     = layout.getSet();
+                uint32_t bindingIndex = layout.getSet();
+
+                vk::raii::DescriptorSet& descriptorSet = this->descriptorSets[setIndex];
+
+                DescriptorSetWrite writeInfo = buffer.getDescriptorSetWrite(descriptorSet);
+                logicalDevice.updateDescriptorSets(writeInfo.writeInfo, {});
+            });
         }
 
-        [[nodiscard]] std::vector<vk::WriteDescriptorSet>
-        getDescriptorSetWrites(uint32_t setIndex) {
-            return {};
+        void createPipeline() {
+            vk::raii::Device&                    logicalDevice = getDevice().getLogicalDevice();
+            std::vector<vk::DescriptorSetLayout> layouts       = getDescriptorSetLayouts();
+
+            computePipelineLayout = std::make_unique<vk::raii::PipelineLayout>(
+                std::move(logicalDevice.createPipelineLayout(
+                    vk::PipelineLayoutCreateInfo().setSetLayoutCount(1).setSetLayouts(layouts))));
+
+            computePipeline =
+                std::make_unique<vk::raii::Pipeline>(std::move(logicalDevice.createComputePipeline(
+                    nullptr,
+                    vk::ComputePipelineCreateInfo()
+                        .setStage(vk::PipelineShaderStageCreateInfo()
+                                      .setStage(vk::ShaderStageFlagBits::eCompute)
+                                      // .setModule(*compute_shader_module)
+                                      .setPName("main"))
+                        .setLayout(**computePipelineLayout))));
+        }
+
+        void createCommandPool() {
+            commandPool = std::make_unique<vk::raii::CommandPool>(
+                std::move(getDevice().getLogicalDevice().createCommandPool(
+                    vk::CommandPoolCreateInfo()
+                        .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+                        .setQueueFamilyIndex(getDevice().getQueueFamilyIndex()))));
+        }
+
+        void createCommandBuffer() {
+            commandBuffers = getDevice().getLogicalDevice().allocateCommandBuffers(
+                vk::CommandBufferAllocateInfo()
+                    .setCommandPool(**commandPool)
+                    .setLevel(vk::CommandBufferLevel::ePrimary)
+                    .setCommandBufferCount(1));
+        }
+
+        void recordCommandBuffers() {
+            auto& commandBuffer = commandBuffers.front();
+            commandBuffer.begin({});
+            commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, **computePipeline);
+
+            std::vector<vk::DescriptorSet> descriptorSetsArray{};
+            descriptorSetsArray.reserve(descriptorSets.size());
+
+            std::transform(descriptorSets.begin(),
+                           descriptorSets.end(),
+                           std::back_inserter(descriptorSetsArray),
+                           [](vk::raii::DescriptorSet& val) {
+                               return *val;
+                           });
+
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                                             **computePipelineLayout,
+                                             0,
+                                             descriptorSetsArray,
+                                             nullptr);
+
+            commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eHost,
+                                          vk::PipelineStageFlagBits::eTransfer,
+                                          {},
+                                          vk::MemoryBarrier(vk::AccessFlagBits::eHostWrite,
+                                                            vk::AccessFlagBits::eTransferRead),
+                                          {},
+                                          {});
+
+            forEachBuffer([&commandBuffer](auto& buffer) {
+                buffer.recordHostToDeviceTransfers(commandBuffer);
+            });
+
+            commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                          vk::PipelineStageFlagBits::eComputeShader,
+                                          {},
+                                          vk::MemoryBarrier(vk::AccessFlagBits::eTransferWrite,
+                                                            vk::AccessFlagBits::eShaderRead),
+                                          {},
+                                          {});
+
+            commandBuffer.dispatch(getScaling().getBatchSize(), 1, 1);
+
+            commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
+                                          vk::PipelineStageFlagBits::eTransfer,
+                                          {},
+                                          vk::MemoryBarrier(vk::AccessFlagBits::eShaderWrite,
+                                                            vk::AccessFlagBits::eTransferRead),
+                                          {},
+                                          {});
+
+            forEachBuffer([&commandBuffer](auto& buffer) {
+                buffer.recordDeviceToHostTransfers();
+            });
+
+            commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                          vk::PipelineStageFlagBits::eAllCommands,
+                                          {},
+                                          vk::MemoryBarrier(vk::AccessFlagBits::eTransferWrite,
+                                                            vk::AccessFlagBits::eHostRead),
+                                          {},
+                                          {});
+
+            commandBuffer.end();
         }
 
       protected:
@@ -206,16 +316,26 @@ namespace epseon::gpu::cpp::resources {
             return *this->devicePointer;
         }
 
+        [[nodiscard]] const scaling::Base& getScaling() const {
+            assert(scalingPointer);
+            return *this->scalingPointer;
+        }
+
         [[nodiscard]] vk::raii::DescriptorPool& getDescriptorPool() {
             assert(descriptorPool);
             return *this->descriptorPool;
         }
 
       private:
-        std::shared_ptr<vk::raii::DescriptorPool> descriptorPool = {};
-        std::vector<vk::raii::DescriptorSet>      descriptorSets = {};
-        std::shared_ptr<environment::Device>      devicePointer  = {};
-        std::shared_ptr<scaling::Base>            scalingPointer = {};
+        std::shared_ptr<vk::raii::DescriptorPool>  descriptorPool           = {};
+        std::vector<vk::raii::DescriptorSet>       descriptorSets           = {};
+        std::shared_ptr<environment::Device>       devicePointer            = {};
+        std::shared_ptr<scaling::Base>             scalingPointer           = {};
+        std::vector<vk::raii::DescriptorSetLayout> raiiDescriptorSetLayouts = {};
+        std::unique_ptr<vk::raii::CommandPool>     commandPool              = {};
+        std::vector<vk::raii::CommandBuffer>       commandBuffers           = {};
+        std::unique_ptr<vk::raii::PipelineLayout>  computePipelineLayout    = {};
+        std::unique_ptr<vk::raii::Pipeline>        computePipeline          = {};
     };
 
     class Dynamic : public Base {

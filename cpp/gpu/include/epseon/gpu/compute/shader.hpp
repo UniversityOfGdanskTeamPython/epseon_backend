@@ -57,7 +57,13 @@ namespace epseon::gpu::cpp {
             Base& operator=(const Base&)     = delete;
             Base& operator=(Base&&) noexcept = default;
 
-            virtual void run() = 0;
+            void run() {
+                auto& resource = getResource();
+                resource.prepare(this->getDevicePointer(), this->getScalingPointer());
+            }
+
+            [[nodiscard]] virtual resourceT&       getResource()       = 0;
+            [[nodiscard]] virtual const resourceT& getResource() const = 0;
 
           protected:
             std::shared_ptr<environment::Device>& getDevicePointer() {
@@ -74,10 +80,12 @@ namespace epseon::gpu::cpp {
         };
 
         class Dynamic : public Base<resources::Dynamic> {
+            using resourceT = resources::Dynamic;
+
           public:
             Dynamic() = delete;
 
-            Dynamic(resources::Dynamic&&                  resource_,
+            Dynamic(resourceT&&                           resource_,
                     std::shared_ptr<environment::Device>& devicePtr_,
                     std::shared_ptr<scaling::Base>&       scalingPtr_) :
                 Base<resources::Dynamic>(devicePtr_, scalingPtr_),
@@ -91,12 +99,16 @@ namespace epseon::gpu::cpp {
             Dynamic& operator=(const Dynamic&)     = delete;
             Dynamic& operator=(Dynamic&&) noexcept = default;
 
-            void run() override {
-                resource.prepare(this->getDevicePointer(), this->getScalingPointer());
+            [[nodiscard]] resourceT& getResource() override {
+                return this->resource;
+            }
+
+            [[nodiscard]] const resourceT& getResource() const override {
+                return this->resource;
             }
 
           private:
-            resources::Dynamic resource;
+            resourceT resource;
         };
 
         template <resources::Concept resourceT>
@@ -118,8 +130,12 @@ namespace epseon::gpu::cpp {
             Static& operator=(const Static&)     = delete;
             Static& operator=(Static&&) noexcept = default;
 
-            void run() override {
-                resource.prepare(this->devicePointer, this->scalingPointer);
+            [[nodiscard]] resourceT& getResource() override {
+                return this->resource;
+            }
+
+            [[nodiscard]] const resourceT& getResource() const override {
+                return this->resource;
             }
 
           private:
@@ -129,11 +145,7 @@ namespace epseon::gpu::cpp {
 
     class VibwaResources : public resources::Static {
       public:
-        explicit VibwaResources(uint64_t batchSize_) :
-            configuration({{.batchSize = batchSize_, .itemCount = 0, .set = 0, .binding = 0}}),
-            y({{.batchSize = batchSize_, .itemCount = 0, .set = 0, .binding = 1}}),
-            buffer0({{.batchSize = batchSize_, .itemCount = 0, .set = 0, .binding = 2}}),
-            output({{.batchSize = batchSize_, .itemCount = 0, .set = 0, .binding = 3}}) {}
+        VibwaResources() = default;
 
       protected:
         template <typename CallableT>
@@ -154,10 +166,13 @@ namespace epseon::gpu::cpp {
             uint32_t max_level                 = {};
         };
 
-        buffer::HostToDevice<layout::Static<Configuration>> configuration;
-        buffer::HostToDevice<layout::Static<float>>         y;
-        buffer::DeviceLocal<layout::Static<float>>          buffer0;
-        buffer::DeviceToHost<layout::Static<float>>         output;
+        buffer::HostToDevice<layout::Static<Configuration>> configuration{
+            {{.itemCount = 0, .set = 0, .binding = 0}}};
+        buffer::HostToDevice<layout::Static<float>> y{{{.itemCount = 0, .set = 0, .binding = 1}}};
+        buffer::DeviceLocal<layout::Static<float>>  buffer0{
+             {{.itemCount = 0, .set = 0, .binding = 2}}};
+        buffer::DeviceToHost<layout::Static<float>> output{
+            {{.itemCount = 0, .set = 0, .binding = 3}}};
     };
 
     template <typename T>
@@ -167,20 +182,19 @@ namespace epseon::gpu::cpp {
 
         std::shared_ptr<environment::Device> device = environment::Device::create(0);
 
-        std::shared_ptr<scaling::Base> scalingPolicy = device->getOptimalScalingPolicy();
+        std::shared_ptr<scaling::Base> scalingPolicy = device->getOptimalScalingPolicy(batchSize);
 
-        shader::Dynamic shader1{resources::Dynamic{{layout::Dynamic{{.batchSize = batchSize,
-                                                                     .itemCount = bufferSize,
-                                                                     .itemSize  = sizeof(float),
-                                                                     .set       = 0,
-                                                                     .binding   = 0}}},
-                                                   {},
-                                                   {}},
-                                device,
-                                scalingPolicy};
+        shader::Dynamic shader1{
+            resources::Dynamic{
+                {layout::Dynamic{
+                    {.itemCount = bufferSize, .itemSize = sizeof(float), .set = 0, .binding = 0}}},
+                {},
+                {}},
+            device,
+            scalingPolicy};
 
         shader1.run();
 
-        shader::Static<VibwaResources> shader2{VibwaResources{batchSize}, device, scalingPolicy};
+        shader::Static<VibwaResources> shader2{VibwaResources{}, device, scalingPolicy};
     }
 } // namespace epseon::gpu::cpp

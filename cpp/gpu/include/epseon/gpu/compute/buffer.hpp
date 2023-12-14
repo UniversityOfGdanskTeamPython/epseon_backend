@@ -7,6 +7,7 @@
 #include "epseon/gpu/compute/allocation.hpp"
 #include "epseon/gpu/compute/layout.hpp"
 #include "epseon/gpu/compute/scaling.hpp"
+#include "epseon/gpu/compute/structs.hpp"
 
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
@@ -33,15 +34,15 @@ namespace epseon::gpu::cpp::environment {
 }
 
 namespace epseon::gpu::cpp::buffer {
-    template <layout::Concept layoutT>
+    template <layout::Concept layoutT, allocation::Concept boundAllocationT>
     class Base {
       public:
         Base() = default;
 
-        explicit Base(layoutT&& layout_) :
+        Base(layoutT&& layout_) : // NOLINT(hicpp-explicit-conversions)
             layout(layout_){};
 
-        explicit Base(const layoutT& layout_) :
+        Base(const layoutT& layout_) : // NOLINT(hicpp-explicit-conversions)
             layout(layout_){};
 
         Base(const Base& other)     = default;
@@ -66,15 +67,55 @@ namespace epseon::gpu::cpp::buffer {
             return this->layout;
         }
 
+        [[nodiscard]] scaling::Base& getScaling() {
+            assert(scalingPointer);
+            return *this->scalingPointer;
+        }
+
+        [[nodiscard]] const scaling::Base& getScaling() const {
+            assert(scalingPointer);
+            return *this->scalingPointer;
+        }
+
         [[nodiscard]] uint32_t getMaxDescriptorSets() const {
             return this->getLayout().getSet();
         }
 
-        virtual void                                 allocateBuffers()             = 0;
-        virtual void                                 deallocateBuffers()           = 0;
-        [[nodiscard]] virtual vk::DescriptorPoolSize getDescriptorPoolSize() const = 0;
-        [[nodiscard]] virtual std::optional<vk::DescriptorSetLayoutBinding>
-        getDescriptorSetLayoutBindings(uint32_t setIndex) const = 0;
+        virtual void                                  allocateBuffers()      = 0;
+        virtual void                                  deallocateBuffers()    = 0;
+        [[nodiscard]] virtual boundAllocationT&       getBoundBuffer()       = 0;
+        [[nodiscard]] virtual const boundAllocationT& getBoundBuffer() const = 0;
+        virtual void recordHostToDeviceTransfers(vk::raii::CommandBuffer&)   = 0;
+        virtual void recordDeviceToHostTransfers(vk::raii::CommandBuffer&)   = 0;
+
+        [[nodiscard]] vk::DescriptorPoolSize getDescriptorPoolSize() const {
+            return getBoundBuffer().getDescriptorPoolSize(this->getLayout());
+        }
+
+        [[nodiscard]] std::optional<vk::DescriptorSetLayoutBinding>
+        getDescriptorSetLayoutBindings(uint32_t setIndex) const {
+            return getBoundBuffer().getDescriptorSetLayoutBindings(setIndex, this->getLayout());
+        }
+
+        [[nodiscard]] DescriptorSetWrite
+        getDescriptorSetWrite(vk::raii::DescriptorSet& descriptorSet) {
+            auto buffer = getBoundBuffer();
+
+            DescriptorSetWrite writeInfo;
+            writeInfo.bufferInfo = getBoundBuffer().getBufferInfo();
+
+            writeInfo.writeInfo.setDstSet(*descriptorSet)
+                .setDstBinding(getLayout().getBinding())
+                .setBufferInfo(writeInfo.bufferInfo)
+                .setDescriptorCount(getBoundBuffer().getDescriptorCount())
+                .setDescriptorType(getBoundBuffer().getDescriptorType());
+
+            return writeInfo;
+        }
+
+        [[nodiscard]] std::vector<vk::DescriptorBufferInfo> getBufferInfo() const {
+            return getBoundBuffer().getBufferInfo();
+        }
 
       private:
         layoutT                              layout         = {};
@@ -83,9 +124,25 @@ namespace epseon::gpu::cpp::buffer {
     };
 
     template <layout::Concept layoutT>
-    class DeviceLocal : public Base<layoutT> {
+    class DeviceLocal : public Base<layoutT, allocation::DeviceLocal<layoutT>> {
+        using boundAllocationT = allocation::DeviceLocal<layoutT>;
+
       public:
-        using Base<layoutT>::Base;
+        DeviceLocal() = default;
+
+        DeviceLocal(layoutT&& layout_) : // NOLINT(hicpp-explicit-conversions)
+            Base<layoutT, boundAllocationT>(layout_){};
+
+        DeviceLocal(const layoutT& layout_) : // NOLINT(hicpp-explicit-conversions)
+            Base<layoutT, boundAllocationT>(layout_){};
+
+        DeviceLocal(const DeviceLocal& other)     = default;
+        DeviceLocal(DeviceLocal&& other) noexcept = default;
+
+        virtual ~DeviceLocal() = default;
+
+        DeviceLocal& operator=(const DeviceLocal& other)     = default;
+        DeviceLocal& operator=(DeviceLocal&& other) noexcept = default;
 
         void bind(std::shared_ptr<environment::Device>& devicePointer,
                   std::shared_ptr<scaling::Base>&       scalingPointer) {
@@ -102,21 +159,27 @@ namespace epseon::gpu::cpp::buffer {
             deviceBuffer.deallocateBuffers(this->getLayout());
         }
 
-        [[nodiscard]] vk::DescriptorPoolSize getDescriptorPoolSize() const override {
-            return deviceBuffer.getDescriptorPoolSize(this->getLayout());
+        [[nodiscard]] boundAllocationT& getBoundBuffer() override {
+            return this->deviceBuffer;
         }
 
-        [[nodiscard]] std::optional<vk::DescriptorSetLayoutBinding>
-        getDescriptorSetLayoutBindings(uint32_t setIndex) const override {
-            return deviceBuffer.getDescriptorSetLayoutBindings(setIndex, this->getLayout());
+        [[nodiscard]] const boundAllocationT& getBoundBuffer() const override {
+            return this->deviceBuffer;
         }
+
+        void recordHostToDeviceTransfers(vk::raii::CommandBuffer& /*commandBuffer*/) override {}
+
+        void recordDeviceToHostTransfers(vk::raii::CommandBuffer& /*commandBuffer*/) override {}
 
       private:
         allocation::DeviceLocal<layoutT> deviceBuffer = {};
     };
 
-    template <typename sourceBufferT, typename destinationBufferT, layout::Concept layoutT>
-    class Transferable : public Base<layoutT> {
+    template <typename sourceBufferT,
+              typename destinationBufferT,
+              allocation::Concept boundAllocationT,
+              layout::Concept     layoutT>
+    class Transferable : public Base<layoutT, boundAllocationT> {
         static_assert(
             std::is_same<typename sourceBufferT::layout_type,
                          typename destinationBufferT::layout_type>::value,
@@ -127,8 +190,6 @@ namespace epseon::gpu::cpp::buffer {
                       "type.");
 
       public:
-        using Base<layoutT>::Base;
-
         void bind(std::shared_ptr<environment::Device>& devicePointer,
                   std::shared_ptr<scaling::Base>&       scalingPointer) {
             this->devicePointer  = devicePointer;
@@ -163,6 +224,8 @@ namespace epseon::gpu::cpp::buffer {
             return this->destinationBuffer;
         }
 
+        
+
       private:
         sourceBufferT      sourceBuffer      = {};
         destinationBufferT destinationBuffer = {};
@@ -171,40 +234,80 @@ namespace epseon::gpu::cpp::buffer {
     template <layout::Concept layoutT>
     class HostToDevice : public Transferable<allocation::HostTransferSrc<layoutT>,
                                              allocation::DeviceTransferDst<layoutT>,
+                                             allocation::DeviceTransferDst<layoutT>,
                                              layoutT> {
+        using boundAllocationT = allocation::DeviceTransferDst<layoutT>;
+
       public:
-        using Transferable<allocation::HostTransferSrc<layoutT>,
-                           allocation::DeviceTransferDst<layoutT>,
-                           layoutT>::Transferable;
+        HostToDevice() = default;
 
-        [[nodiscard]] vk::DescriptorPoolSize getDescriptorPoolSize() const override {
-            return this->getSourceBuffer().getDescriptorPoolSize(this->getLayout());
+        HostToDevice(layoutT&& layout_) : // NOLINT(hicpp-explicit-conversions)
+            Base<layoutT, boundAllocationT>(layout_){};
+
+        HostToDevice(const layoutT& layout_) : // NOLINT(hicpp-explicit-conversions)
+            Base<layoutT, boundAllocationT>(layout_){};
+
+        HostToDevice(const HostToDevice& other)     = default;
+        HostToDevice(HostToDevice&& other) noexcept = default;
+
+        virtual ~HostToDevice() = default;
+
+        HostToDevice& operator=(const HostToDevice& other)     = default;
+        HostToDevice& operator=(HostToDevice&& other) noexcept = default;
+
+        [[nodiscard]] boundAllocationT& getBoundBuffer() override {
+            return this->getDestinationBuffer();
         }
 
-        [[nodiscard]] std::optional<vk::DescriptorSetLayoutBinding>
-        getDescriptorSetLayoutBindings(uint32_t setIndex) const override {
-            return this->getSourceBuffer().getDescriptorSetLayoutBindings(setIndex,
-                                                                          this->getLayout());
+        [[nodiscard]] const boundAllocationT& getBoundBuffer() const override {
+            return this->getDestinationBuffer();
         }
+
+        void recordHostToDeviceTransfers(vk::raii::CommandBuffer& commandBuffer) override {
+            this->getSourceBuffer().recordCopyBuffer(
+                this->getDestinationBuffer(), commandBuffer, this->getLayout());
+        }
+
+        void recordDeviceToHostTransfers(vk::raii::CommandBuffer& /*commandBuffer*/) override {}
     };
 
     template <layout::Concept layoutT>
     class DeviceToHost : public Transferable<allocation::DeviceTransferSrc<layoutT>,
                                              allocation::HostTransferDst<layoutT>,
+                                             allocation::DeviceTransferSrc<layoutT>,
                                              layoutT> {
-      public:
-        using Transferable<allocation::DeviceTransferSrc<layoutT>,
-                           allocation::HostTransferDst<layoutT>,
-                           layoutT>::Transferable;
+        using boundAllocationT = allocation::DeviceTransferSrc<layoutT>;
 
-        [[nodiscard]] vk::DescriptorPoolSize getDescriptorPoolSize() const override {
-            return this->getDestinationBuffer().getDescriptorPoolSize(this->getLayout());
+      public:
+        DeviceToHost() = default;
+
+        DeviceToHost(layoutT&& layout_) : // NOLINT(hicpp-explicit-conversions)
+            Base<layoutT, boundAllocationT>(layout_){};
+
+        DeviceToHost(const layoutT& layout_) : // NOLINT(hicpp-explicit-conversions)
+            Base<layoutT, boundAllocationT>(layout_){};
+
+        DeviceToHost(const DeviceToHost& other)     = default;
+        DeviceToHost(DeviceToHost&& other) noexcept = default;
+
+        virtual ~DeviceToHost() = default;
+
+        DeviceToHost& operator=(const DeviceToHost& other)     = default;
+        DeviceToHost& operator=(DeviceToHost&& other) noexcept = default;
+
+        [[nodiscard]] boundAllocationT& getBoundBuffer() override {
+            return this->getSourceBuffer();
         }
 
-        [[nodiscard]] std::optional<vk::DescriptorSetLayoutBinding>
-        getDescriptorSetLayoutBindings(uint32_t setIndex) const override {
-            return this->getDestinationBuffer().getDescriptorSetLayoutBindings(setIndex,
-                                                                               this->getLayout());
+        [[nodiscard]] const boundAllocationT& getBoundBuffer() const override {
+            return this->getSourceBuffer();
+        }
+
+        void recordHostToDeviceTransfers(vk::raii::CommandBuffer& /*commandBuffer*/) override {}
+
+        void recordDeviceToHostTransfers(vk::raii::CommandBuffer& commandBuffer) override {
+            this->getSourceBuffer().recordCopyBuffer(
+                this->getDestinationBuffer(), commandBuffer, this->getLayout());
         }
     };
 

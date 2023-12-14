@@ -14,7 +14,9 @@ namespace epseon::gpu::cpp {
 
         class Base {
           public:
-            Base()                = default;
+            explicit Base(uint32_t batchSize_) :
+                batchSize(batchSize_) {}
+
             Base(const Base&)     = default;
             Base(Base&&) noexcept = default;
 
@@ -23,15 +25,24 @@ namespace epseon::gpu::cpp {
             Base& operator=(const Base&)     = default;
             Base& operator=(Base&&) noexcept = default;
 
-            [[nodiscard]] virtual uint64_t
-            getAllocationTotalSizeBytes(uint64_t totalSizeBytes, uint64_t batchSize) const = 0;
+            [[nodiscard]] uint64_t getBatchSize() const {
+                return this->batchSize;
+            }
 
-            [[nodiscard]] virtual uint64_t getAllocationBufferCount(uint64_t batchSize) const = 0;
+            [[nodiscard]] virtual uint64_t
+            getAllocationTotalSizeBytes(uint64_t totalSizeBytes) const = 0;
+
+            [[nodiscard]] virtual uint64_t getAllocationBufferCount() const = 0;
+
+          private:
+            uint32_t batchSize;
         };
 
         class BufferArray : public Base {
           public:
-            BufferArray()                       = default;
+            explicit BufferArray(uint32_t batchSize_) :
+                Base(batchSize_) {}
+
             BufferArray(const BufferArray&)     = default;
             BufferArray(BufferArray&&) noexcept = default;
 
@@ -41,24 +52,34 @@ namespace epseon::gpu::cpp {
             BufferArray& operator=(BufferArray&&) noexcept = default;
 
             [[nodiscard]] uint64_t
-            getAllocationTotalSizeBytes(uint64_t totalSizeBytes,
-                                        uint64_t /*batchSize*/) const override {
+            getAllocationTotalSizeBytes(uint64_t totalSizeBytes) const override {
                 return totalSizeBytes;
             }
 
-            [[nodiscard]] uint64_t getAllocationBufferCount(uint64_t batchSize) const override {
-                return batchSize;
+            [[nodiscard]] uint64_t getAllocationBufferCount() const override {
+                return getBatchSize();
             }
         };
 
         class LargeBuffer : public Base {
           public:
-            [[nodiscard]] uint64_t getAllocationTotalSizeBytes(uint64_t totalSizeBytes,
-                                                               uint64_t batchSize) const override {
-                return totalSizeBytes * batchSize;
+            explicit LargeBuffer(uint32_t batchSize_) :
+                Base(batchSize_) {}
+
+            LargeBuffer(const LargeBuffer&)     = default;
+            LargeBuffer(LargeBuffer&&) noexcept = default;
+
+            ~LargeBuffer() override = default;
+
+            LargeBuffer& operator=(const LargeBuffer&)     = default;
+            LargeBuffer& operator=(LargeBuffer&&) noexcept = default;
+
+            [[nodiscard]] uint64_t
+            getAllocationTotalSizeBytes(uint64_t totalSizeBytes) const override {
+                return totalSizeBytes * getBatchSize();
             }
 
-            [[nodiscard]] uint64_t getAllocationBufferCount(uint64_t /*batchSize*/) const override {
+            [[nodiscard]] uint64_t getAllocationBufferCount() const override {
                 return 1;
             }
         };

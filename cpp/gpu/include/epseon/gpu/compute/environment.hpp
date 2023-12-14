@@ -15,6 +15,7 @@
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
 #include "vk_mem_alloc_structs.hpp"
+#include <optional>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_enums.hpp>
@@ -64,7 +65,7 @@ namespace epseon::gpu::cpp::environment {
         Device& operator=(const Device&)     = delete;
         Device& operator=(Device&&) noexcept = default;
 
-        static std::shared_ptr<Device> create(uint32_t deviceId) {
+        static std::shared_ptr<Device> create(std::optional<uint32_t> deviceId = std::nullopt) {
             auto     context          = vk::raii::Context();
             uint32_t vulkanApiVersion = context.enumerateInstanceVersion();
 
@@ -116,16 +117,20 @@ namespace epseon::gpu::cpp::environment {
         }
 
       private:
-        static vk::raii::PhysicalDevice createPhysicalDevice(vk::raii::Instance& instance,
-                                                             uint32_t            deviceId) {
+        static vk::raii::PhysicalDevice createPhysicalDevice(vk::raii::Instance&     instance,
+                                                             std::optional<uint32_t> deviceId) {
             for (vk::raii::PhysicalDevice& physicalDevice : instance.enumeratePhysicalDevices()) {
                 auto props = physicalDevice.getProperties();
-                if (props.deviceID == deviceId) {
+                if (deviceId.has_value() && props.deviceID == deviceId) {
                     return physicalDevice;
                 }
             }
-            auto str = fmt::format("Device with ID {} not found", deviceId);
-            throw std::runtime_error(str);
+            if (deviceId.has_value()) {
+                auto str = fmt::format("Device with ID {} not found", deviceId.value());
+                throw std::runtime_error(str);
+            } else {
+                throw std::runtime_error("No devices available.");
+            }
         }
 
         struct _createLogicalDevice {
@@ -206,11 +211,12 @@ namespace epseon::gpu::cpp::environment {
         }
 
       public:
-        [[nodiscard]] std::shared_ptr<scaling::Base> getOptimalScalingPolicy() const {
+        [[nodiscard]] std::shared_ptr<scaling::Base>
+        getOptimalScalingPolicy(uint32_t batchSize) const {
             if (supportsBufferArrayScaling) {
-                return std::make_shared<scaling::BufferArray>();
+                return std::make_shared<scaling::BufferArray>(batchSize);
             } else {
-                return std::make_shared<scaling::LargeBuffer>();
+                return std::make_shared<scaling::LargeBuffer>(batchSize);
             }
         }
 
@@ -228,6 +234,10 @@ namespace epseon::gpu::cpp::environment {
 
         [[nodiscard]] const vk::raii::Device& getLogicalDevice() const {
             return this->logicalDevice;
+        }
+
+        [[nodiscard]] uint32_t getQueueFamilyIndex() const {
+            return queueIndex;
         }
 
       private:

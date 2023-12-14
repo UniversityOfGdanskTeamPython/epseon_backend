@@ -29,8 +29,7 @@ namespace epseon::gpu::cpp::layout {
       public:
         Base() = delete;
 
-        explicit Base(uint64_t batchSize_, uint32_t set_, uint32_t binding_) :
-            batchSize(batchSize_),
+        Base(uint32_t set_, uint32_t binding_) :
             set(set_),
             binding(binding_){};
 
@@ -45,10 +44,6 @@ namespace epseon::gpu::cpp::layout {
         [[nodiscard]] virtual uint64_t getItemCount() const = 0;
         [[nodiscard]] virtual uint64_t getItemSize() const  = 0;
 
-        [[nodiscard]] uint64_t getBatchSize() const {
-            return this->batchSize;
-        }
-
         [[nodiscard]] uint64_t getTotalSizeBytes() const {
             return this->getItemCount() * this->getItemSize();
         };
@@ -62,9 +57,8 @@ namespace epseon::gpu::cpp::layout {
         };
 
       private:
-        uint64_t batchSize = {};
-        uint32_t set       = {};
-        uint32_t binding   = {};
+        uint32_t set     = {};
+        uint32_t binding = {};
     };
 
     template <typename contentT>
@@ -73,15 +67,20 @@ namespace epseon::gpu::cpp::layout {
         Static() = delete;
 
         struct StaticCtorParams {
-            uint64_t batchSize;
             uint64_t itemCount;
             uint64_t set;
             uint64_t binding;
         };
 
         Static(StaticCtorParams params) : // NOLINT(hicpp-explicit-conversions)
-            Base(params.batchSize, params.set, params.binding),
+            Base(params.set, params.binding),
             itemCount(params.itemCount) {}
+
+        Static(
+
+            uint64_t itemCount, uint64_t set, uint64_t binding) :
+            Base(set, binding),
+            itemCount(itemCount) {}
 
         Static(const Static& other)     = default;
         Static(Static&& other) noexcept = default;
@@ -108,7 +107,6 @@ namespace epseon::gpu::cpp::layout {
         Dynamic() = delete;
 
         struct DynamicCtorParams {
-            uint64_t batchSize;
             uint64_t itemCount;
             uint64_t itemSize;
             uint64_t set;
@@ -116,7 +114,7 @@ namespace epseon::gpu::cpp::layout {
         };
 
         Dynamic(DynamicCtorParams params) : // NOLINT(hicpp-explicit-conversions)
-            Base(params.batchSize, params.set, params.binding),
+            Base(params.set, params.binding),
             itemCount(params.itemCount),
             itemSize(params.itemSize) {}
 

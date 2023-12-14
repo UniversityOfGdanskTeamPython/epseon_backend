@@ -7,6 +7,7 @@
 #include <concepts>
 #include <cstdint>
 #include <memory>
+#include <vulkan/vulkan_enums.hpp>
 
 namespace epseon::gpu::cpp {
 
@@ -19,7 +20,6 @@ namespace epseon::gpu::cpp {
         concept Concept = requires(T t) {
             { t.getItemCount() } -> std::same_as<uint64_t>;
             { t.getItemSize() } -> std::same_as<uint64_t>;
-            { t.getBatchSize() } -> std::same_as<uint64_t>;
             { t.getTotalSizeBytes() } -> std::same_as<uint64_t>;
             { t.getSet() } -> std::same_as<uint32_t>;
             { t.getBinding() } -> std::same_as<uint32_t>;
@@ -55,20 +55,30 @@ namespace epseon::gpu::cpp {
     } // namespace resources
 
     namespace allocation {
+        template <typename T>
+        concept Concept = requires(T t) {
+            { t.getDescriptorType() } -> std::same_as<vk::DescriptorType>;
+            { T::getBufferUsageFlags() } -> std::same_as<vk::BufferUsageFlags>;
+            { T::getAllocationFlags() } -> std::same_as<vma::AllocationCreateFlags>;
+        };
+
         template <VkBufferUsageFlags       bufferUsageFlags,
                   VmaAllocationCreateFlags allocationFlags,
                   layout::Concept          layoutT>
         class Allocation;
-    }
+    } // namespace allocation
 
     namespace buffer {
-        template <layout::Concept layoutT>
+        template <layout::Concept layoutT, allocation::Concept boundAllocationT>
         class Base;
 
         template <layout::Concept layoutT>
         class DeviceLocal;
 
-        template <typename sourceBufferT, typename destinationBufferT, layout::Concept layoutT>
+        template <typename sourceBufferT,
+                  typename destinationBufferT,
+                  allocation::Concept boundAllocationT,
+                  layout::Concept     layoutT>
         class Transferable;
 
         template <layout::Concept layoutT>
@@ -88,4 +98,6 @@ namespace epseon::gpu::cpp {
         template <resources::Concept resourceT>
         class Static;
     } // namespace shader
+
+    struct DescriptorSetWrite;
 } // namespace epseon::gpu::cpp
