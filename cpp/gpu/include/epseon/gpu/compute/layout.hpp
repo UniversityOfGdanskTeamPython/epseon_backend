@@ -8,6 +8,7 @@
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
 #include "vk_mem_alloc_structs.hpp"
+#include <functional>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
@@ -27,6 +28,11 @@ namespace epseon::gpu::cpp::layout {
 
     class Base {
       public:
+        using content_type         = void;
+        using content_type_pointer = void*;
+        using fill_function_type =
+            std::function<void(uint32_t, content_type_pointer, content_type_pointer, const Base&)>;
+
         Base() = delete;
 
         Base(uint32_t set_, uint32_t binding_) :
@@ -64,6 +70,11 @@ namespace epseon::gpu::cpp::layout {
     template <typename contentT>
     class Static : public Base {
       public:
+        using content_type         = contentT;
+        using content_type_pointer = contentT*;
+        using fill_function_type   = std::function<void(
+            uint32_t, content_type_pointer, content_type_pointer, const Static<content_type>&)>;
+
         Static() = delete;
 
         struct StaticCtorParams {
@@ -76,9 +87,7 @@ namespace epseon::gpu::cpp::layout {
             Base(params.set, params.binding),
             itemCount(params.itemCount) {}
 
-        Static(
-
-            uint64_t itemCount, uint64_t set, uint64_t binding) :
+        Static(uint64_t itemCount, uint64_t set, uint64_t binding) :
             Base(set, binding),
             itemCount(itemCount) {}
 
@@ -95,7 +104,7 @@ namespace epseon::gpu::cpp::layout {
         };
 
         [[nodiscard]] uint64_t getItemSize() const override {
-            return sizeof(contentT);
+            return sizeof(content_type);
         };
 
       private:
@@ -104,6 +113,11 @@ namespace epseon::gpu::cpp::layout {
 
     class Dynamic : public Base {
       public:
+        using content_type         = void;
+        using content_type_pointer = void*;
+        using fill_function_type   = std::function<void(
+            uint32_t, content_type_pointer, content_type_pointer, const Dynamic&)>;
+
         Dynamic() = delete;
 
         struct DynamicCtorParams {

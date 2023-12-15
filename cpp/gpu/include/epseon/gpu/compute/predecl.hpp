@@ -75,9 +75,10 @@ namespace epseon::gpu::cpp {
         template <layout::Concept layoutT>
         class DeviceLocal;
 
-        template <typename sourceBufferT,
-                  typename destinationBufferT,
+        template <allocation::Concept sourceAllocationT,
+                  allocation::Concept destinationAllocationT,
                   allocation::Concept boundAllocationT,
+                  allocation::Concept mappedAllocationT,
                   layout::Concept     layoutT>
         class Transferable;
 

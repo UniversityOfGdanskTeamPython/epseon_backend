@@ -9,6 +9,7 @@
 #include "epseon/gpu/compute/environment.hpp"
 #include "epseon/gpu/compute/layout.hpp"
 #include "epseon/gpu/compute/scaling.hpp"
+#include "epseon/gpu/compute/structs.hpp"
 
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
@@ -356,6 +357,15 @@ namespace epseon::gpu::cpp::resources {
                 outputBuffers.emplace_back(layout);
             }
         }
+
+        Dynamic()                         = default;
+        Dynamic(const Dynamic& other)     = delete;
+        Dynamic(Dynamic&& other) noexcept = default;
+
+        ~Dynamic() override = default;
+
+        Dynamic& operator=(const Dynamic& other)     = delete;
+        Dynamic& operator=(Dynamic&& other) noexcept = default;
 
       protected:
         template <typename CallableT>

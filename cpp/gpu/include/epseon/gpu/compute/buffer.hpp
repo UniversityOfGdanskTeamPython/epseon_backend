@@ -5,6 +5,8 @@
 #include "epseon/gpu/compute/predecl.hpp"
 
 #include "epseon/gpu/compute/allocation.hpp"
+#include "epseon/gpu/compute/buffer.hpp"
+#include "epseon/gpu/compute/environment.hpp"
 #include "epseon/gpu/compute/layout.hpp"
 #include "epseon/gpu/compute/scaling.hpp"
 #include "epseon/gpu/compute/structs.hpp"
@@ -12,6 +14,7 @@
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
 #include "vk_mem_alloc_structs.hpp"
+#include <functional>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
@@ -37,7 +40,7 @@ namespace epseon::gpu::cpp::buffer {
     template <layout::Concept layoutT, allocation::Concept boundAllocationT>
     class Base {
       public:
-        Base() = default;
+        Base() = delete;
 
         Base(layoutT&& layout_) : // NOLINT(hicpp-explicit-conversions)
             layout(layout_){};
@@ -118,7 +121,7 @@ namespace epseon::gpu::cpp::buffer {
         }
 
       private:
-        layoutT                              layout         = {};
+        layoutT                              layout;
         std::shared_ptr<environment::Device> devicePointer  = {};
         std::shared_ptr<scaling::Base>       scalingPointer = {};
     };
@@ -128,7 +131,7 @@ namespace epseon::gpu::cpp::buffer {
         using boundAllocationT = allocation::DeviceLocal<layoutT>;
 
       public:
-        DeviceLocal() = default;
+        DeviceLocal() = delete;
 
         DeviceLocal(layoutT&& layout_) : // NOLINT(hicpp-explicit-conversions)
             Base<layoutT, boundAllocationT>(layout_){};
@@ -139,7 +142,7 @@ namespace epseon::gpu::cpp::buffer {
         DeviceLocal(const DeviceLocal& other)     = default;
         DeviceLocal(DeviceLocal&& other) noexcept = default;
 
-        virtual ~DeviceLocal() = default;
+        ~DeviceLocal() override = default;
 
         DeviceLocal& operator=(const DeviceLocal& other)     = default;
         DeviceLocal& operator=(DeviceLocal&& other) noexcept = default;
@@ -175,21 +178,38 @@ namespace epseon::gpu::cpp::buffer {
         allocation::DeviceLocal<layoutT> deviceBuffer = {};
     };
 
-    template <typename sourceBufferT,
-              typename destinationBufferT,
+    template <allocation::Concept sourceAllocationT,
+              allocation::Concept destinationAllocationT,
               allocation::Concept boundAllocationT,
+              allocation::Concept mappedAllocationT,
               layout::Concept     layoutT>
     class Transferable : public Base<layoutT, boundAllocationT> {
         static_assert(
-            std::is_same<typename sourceBufferT::layout_type,
-                         typename destinationBufferT::layout_type>::value,
+            std::is_same<typename sourceAllocationT::layout_type,
+                         typename destinationAllocationT::layout_type>::value,
             "sourceBufferT::layout_type and sourceBufferT::layout_type must be of the same "
             "type.");
-        static_assert(std::is_same<typename sourceBufferT::layout_type, layoutT>::value,
+        static_assert(std::is_same<typename sourceAllocationT::layout_type, layoutT>::value,
                       "sourceBufferT::layout_type and layoutT must be of the same "
                       "type.");
 
       public:
+        Transferable() = delete;
+
+        Transferable(layoutT&& layout_) : // NOLINT(hicpp-explicit-conversions)
+            Base<layoutT, boundAllocationT>(layout_){};
+
+        Transferable(const layoutT& layout_) : // NOLINT(hicpp-explicit-conversions)
+            Base<layoutT, boundAllocationT>(layout_){};
+
+        Transferable(const Transferable& other)     = default;
+        Transferable(Transferable&& other) noexcept = default;
+
+        ~Transferable() override = default;
+
+        Transferable& operator=(const Transferable& other)     = default;
+        Transferable& operator=(Transferable&& other) noexcept = default;
+
         void bind(std::shared_ptr<environment::Device>& devicePointer,
                   std::shared_ptr<scaling::Base>&       scalingPointer) {
             this->devicePointer  = devicePointer;
@@ -208,44 +228,57 @@ namespace epseon::gpu::cpp::buffer {
             destinationBuffer.deallocateBuffers(this->getLayout());
         }
 
-        sourceBufferT& getSourceBuffer() {
+        sourceAllocationT& getSourceAllocation() {
             return this->sourceBuffer;
         }
 
-        const sourceBufferT& getSourceBuffer() const {
+        const sourceAllocationT& getSourceAllocation() const {
             return this->sourceBuffer;
         }
 
-        destinationBufferT& getDestinationBuffer() {
+        destinationAllocationT& getDestinationAllocation() {
             return this->destinationBuffer;
         }
 
-        const destinationBufferT& getDestinationBuffer() const {
+        const destinationAllocationT& getDestinationAllocation() const {
             return this->destinationBuffer;
         }
 
-        
+        virtual mappedAllocationT& getMappedAllocation() = 0;
+
+        virtual const mappedAllocationT& getMappedAllocation() const = 0;
+
+        void fillBuffers(layoutT::fill_function_type fillFunction) {
+            getMappedAllocation().fillBuffers(fillFunction, this->getLayout());
+        }
 
       private:
-        sourceBufferT      sourceBuffer      = {};
-        destinationBufferT destinationBuffer = {};
+        sourceAllocationT      sourceBuffer      = {};
+        destinationAllocationT destinationBuffer = {};
     };
 
     template <layout::Concept layoutT>
     class HostToDevice : public Transferable<allocation::HostTransferSrc<layoutT>,
                                              allocation::DeviceTransferDst<layoutT>,
                                              allocation::DeviceTransferDst<layoutT>,
+                                             allocation::HostTransferSrc<layoutT>,
                                              layoutT> {
-        using boundAllocationT = allocation::DeviceTransferDst<layoutT>;
+        using boundAllocationT  = allocation::DeviceTransferDst<layoutT>;
+        using mappedAllocationT = allocation::HostTransferSrc<layoutT>;
+        using transferableT     = Transferable<allocation::HostTransferSrc<layoutT>,
+                                           allocation::DeviceTransferDst<layoutT>,
+                                           allocation::DeviceTransferDst<layoutT>,
+                                           allocation::HostTransferSrc<layoutT>,
+                                           layoutT>;
 
       public:
-        HostToDevice() = default;
+        HostToDevice() = delete;
 
         HostToDevice(layoutT&& layout_) : // NOLINT(hicpp-explicit-conversions)
-            Base<layoutT, boundAllocationT>(layout_){};
+            transferableT(layout_){};
 
         HostToDevice(const layoutT& layout_) : // NOLINT(hicpp-explicit-conversions)
-            Base<layoutT, boundAllocationT>(layout_){};
+            transferableT(layout_){};
 
         HostToDevice(const HostToDevice& other)     = default;
         HostToDevice(HostToDevice&& other) noexcept = default;
@@ -256,16 +289,24 @@ namespace epseon::gpu::cpp::buffer {
         HostToDevice& operator=(HostToDevice&& other) noexcept = default;
 
         [[nodiscard]] boundAllocationT& getBoundBuffer() override {
-            return this->getDestinationBuffer();
+            return this->getDestinationAllocation();
         }
 
         [[nodiscard]] const boundAllocationT& getBoundBuffer() const override {
-            return this->getDestinationBuffer();
+            return this->getDestinationAllocation();
+        }
+
+        mappedAllocationT& getMappedAllocation() override {
+            return this->getSourceAllocation();
+        }
+
+        const mappedAllocationT& getMappedAllocation() const override {
+            return this->getSourceAllocation();
         }
 
         void recordHostToDeviceTransfers(vk::raii::CommandBuffer& commandBuffer) override {
-            this->getSourceBuffer().recordCopyBuffer(
-                this->getDestinationBuffer(), commandBuffer, this->getLayout());
+            this->getSourceAllocation().recordCopyBuffer(
+                this->getDestinationAllocation(), commandBuffer, this->getLayout());
         }
 
         void recordDeviceToHostTransfers(vk::raii::CommandBuffer& /*commandBuffer*/) override {}
@@ -275,17 +316,24 @@ namespace epseon::gpu::cpp::buffer {
     class DeviceToHost : public Transferable<allocation::DeviceTransferSrc<layoutT>,
                                              allocation::HostTransferDst<layoutT>,
                                              allocation::DeviceTransferSrc<layoutT>,
+                                             allocation::HostTransferDst<layoutT>,
                                              layoutT> {
-        using boundAllocationT = allocation::DeviceTransferSrc<layoutT>;
+        using boundAllocationT  = allocation::DeviceTransferSrc<layoutT>;
+        using mappedAllocationT = allocation::HostTransferDst<layoutT>;
+        using transferableT     = Transferable<allocation::DeviceTransferSrc<layoutT>,
+                                           allocation::HostTransferDst<layoutT>,
+                                           allocation::DeviceTransferSrc<layoutT>,
+                                           allocation::HostTransferDst<layoutT>,
+                                           layoutT>;
 
       public:
-        DeviceToHost() = default;
+        DeviceToHost() = delete;
 
         DeviceToHost(layoutT&& layout_) : // NOLINT(hicpp-explicit-conversions)
-            Base<layoutT, boundAllocationT>(layout_){};
+            transferableT(layout_){};
 
         DeviceToHost(const layoutT& layout_) : // NOLINT(hicpp-explicit-conversions)
-            Base<layoutT, boundAllocationT>(layout_){};
+            transferableT(layout_){};
 
         DeviceToHost(const DeviceToHost& other)     = default;
         DeviceToHost(DeviceToHost&& other) noexcept = default;
@@ -296,18 +344,26 @@ namespace epseon::gpu::cpp::buffer {
         DeviceToHost& operator=(DeviceToHost&& other) noexcept = default;
 
         [[nodiscard]] boundAllocationT& getBoundBuffer() override {
-            return this->getSourceBuffer();
+            return this->getSourceAllocation();
         }
 
         [[nodiscard]] const boundAllocationT& getBoundBuffer() const override {
-            return this->getSourceBuffer();
+            return this->getSourceAllocation();
+        }
+
+        mappedAllocationT& getMappedAllocation() override {
+            return this->getDestinationAllocation();
+        }
+
+        const mappedAllocationT& getMappedAllocation() const override {
+            return this->getDestinationAllocation();
         }
 
         void recordHostToDeviceTransfers(vk::raii::CommandBuffer& /*commandBuffer*/) override {}
 
         void recordDeviceToHostTransfers(vk::raii::CommandBuffer& commandBuffer) override {
-            this->getSourceBuffer().recordCopyBuffer(
-                this->getDestinationBuffer(), commandBuffer, this->getLayout());
+            this->getSourceAllocation().recordCopyBuffer(
+                this->getDestinationAllocation(), commandBuffer, this->getLayout());
         }
     };
 

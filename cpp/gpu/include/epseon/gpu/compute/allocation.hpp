@@ -35,7 +35,6 @@ namespace epseon::gpu::cpp::allocation {
               VmaAllocationCreateFlags allocationFlags,
               layout::Concept          layoutT>
     struct Allocation {
-
         using layout_type = layoutT;
 
         [[nodiscard]] static constexpr vk::BufferUsageFlags getBufferUsageFlags() {
@@ -50,11 +49,11 @@ namespace epseon::gpu::cpp::allocation {
             return vk::DescriptorType::eStorageBuffer;
         }
 
-        [[nodiscard]] uint32_t getAllocationTotalSizeBytes(const layoutT& layout) const {
+        [[nodiscard]] uint32_t getAllocationTotalSizeBytes(const layout_type& layout) const {
             return getScaling().getAllocationTotalSizeBytes(layout.getTotalSizeBytes());
         }
 
-        [[nodiscard]] uint32_t getAllocationBufferCount(const layoutT& /*layout*/) const {
+        [[nodiscard]] uint32_t getAllocationBufferCount() const {
             return getScaling().getAllocationBufferCount();
         }
 
@@ -77,7 +76,7 @@ namespace epseon::gpu::cpp::allocation {
             return this->buffers;
         }
 
-        [[nodiscard]] std::vector<vk::Buffer>& getBuffers() const {
+        [[nodiscard]] const std::vector<vk::Buffer>& getBuffers() const {
             return this->buffers;
         }
 
@@ -87,7 +86,7 @@ namespace epseon::gpu::cpp::allocation {
             this->scalingPointer = scalingPointer;
         }
 
-        void allocateBuffers(const layoutT& layout) noexcept {
+        void allocateBuffers(const layout_type& layout) noexcept {
             auto bufferSizeBytes = getAllocationTotalSizeBytes(layout);
             auto bufferCreateInfo =
                 vk::BufferCreateInfo().setUsage(getBufferUsageFlags()).setSize(bufferSizeBytes);
@@ -113,8 +112,8 @@ namespace epseon::gpu::cpp::allocation {
             }
         }
 
-        void deallocateBuffers(const layoutT& /*layout*/) {
-            auto bufferCount = getScaling().getAllocationBufferCount();
+        void deallocateBuffers(const layout_type& /*layout*/) {
+            auto bufferCount = getAllocationBufferCount();
 
             for (uint32_t i = 0; i < bufferCount; i++) {
                 getDevice().getDeviceAllocator().destroyBuffer(buffers[i], allocations[i]);
@@ -125,7 +124,7 @@ namespace epseon::gpu::cpp::allocation {
         }
 
         [[nodiscard]] std::optional<vk::DescriptorSetLayoutBinding>
-        getDescriptorSetLayoutBindings(uint32_t setIndex, const layoutT& layout) const {
+        getDescriptorSetLayoutBindings(uint32_t setIndex, const layout_type& layout) const {
             if (setIndex != layout.getSet()) {
                 return std::nullopt;
             }
@@ -138,16 +137,16 @@ namespace epseon::gpu::cpp::allocation {
         }
 
         [[nodiscard]] vk::DescriptorPoolSize
-        getDescriptorPoolSize(const layoutT& /*layout*/) const {
+        getDescriptorPoolSize(const layout_type& /*layout*/) const {
             return vk::DescriptorPoolSize()
                 .setType(vk::DescriptorType::eStorageBuffer)
                 .setDescriptorCount(getAllocationBufferCount());
         }
 
         [[nodiscard]] std::vector<vk::DescriptorBufferInfo>
-        getBufferInfo(const layoutT& layout) const {
-            uint32_t bufferCount     = getScaling().getAllocationBufferCount(layout);
-            uint32_t bufferTotalSize = getScaling().getAllocationTotalSizeBytes(layout);
+        getBufferInfo(const layout_type& layout) const {
+            uint32_t bufferCount     = getAllocationBufferCount();
+            uint32_t bufferTotalSize = getAllocationTotalSizeBytes(layout);
 
             std::vector<vk::DescriptorBufferInfo> bufferInfo{};
             bufferInfo.reserve(bufferCount);
@@ -155,17 +154,18 @@ namespace epseon::gpu::cpp::allocation {
             for (const vk::Buffer& buffer : buffers) {
                 bufferInfo.emplace_back(buffer, 0, bufferTotalSize);
             }
+            return bufferInfo;
         }
 
         template <allocation::Concept destinationBufferT>
         void recordCopyBuffer(destinationBufferT&      destination,
                               vk::raii::CommandBuffer& commandBuffer,
-                              layoutT&                 layout) {
+                              layout_type&             layout) {
             std::vector<vk::Buffer>& sourceBuffers      = this->getBuffers();
             std::vector<vk::Buffer>& destinationBuffers = destination.getBuffers();
 
-            uint32_t bufferCount     = getScaling().getAllocationBufferCount(layout);
-            uint32_t bufferTotalSize = getScaling().getAllocationTotalSizeBytes(layout);
+            uint32_t bufferCount     = getAllocationBufferCount();
+            uint32_t bufferTotalSize = getAllocationTotalSizeBytes(layout);
 
             auto bufferCopyInfo =
                 vk::BufferCopy().setSize(bufferTotalSize).setSrcOffset(0).setDstOffset(0);
@@ -173,6 +173,40 @@ namespace epseon::gpu::cpp::allocation {
             for (uint32_t bufferIndex = 0; bufferIndex < bufferCount; bufferIndex++) {
                 commandBuffer.copyBuffer(
                     sourceBuffers[bufferIndex], destinationBuffers[bufferIndex], {bufferCopyInfo});
+            }
+        }
+
+        virtual void fillBuffers(layout_type::fill_function_type fillFunction,
+                                 const layout_type&              layout) {
+            uint32_t bufferCount     = getAllocationBufferCount();
+            uint64_t bufferTotalSize = getAllocationTotalSizeBytes(layout);
+
+            uint32_t singleBufferSize = layout.getTotalSizeBytes();
+            uint32_t elementCount     = layout.getItemCount();
+            uint32_t bufferIndex      = 0;
+
+            for (uint32_t bufferArrayIndex = 0; bufferArrayIndex < bufferCount;
+                 bufferArrayIndex++) {
+                auto allocationInfo = allocationInfos[bufferArrayIndex];
+
+                for (uint64_t bufferOffset = 0; bufferOffset < bufferTotalSize;
+                     bufferOffset += singleBufferSize) {
+                    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+                    uint8_t* bufferBeginBytesPointer =
+                        static_cast<uint8_t*>(allocationInfo.pMappedData) + bufferOffset;
+                    uint8_t* bufferEndBytesPointer = bufferBeginBytesPointer + singleBufferSize;
+                    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
+                    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+                    fillFunction(
+                        bufferIndex,
+                        reinterpret_cast<layout_type::content_type_pointer>(
+                            bufferBeginBytesPointer),
+                        reinterpret_cast<layout_type::content_type_pointer>(bufferEndBytesPointer),
+                        layout);
+                    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+                    bufferIndex++;
+                }
             }
         }
 
@@ -188,7 +222,8 @@ namespace epseon::gpu::cpp::allocation {
     template <layout::Concept layoutT>
     using HostTransferSrc =
         Allocation<VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                   VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+                   VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                       VMA_ALLOCATION_CREATE_MAPPED_BIT,
                    layoutT>;
 
     template <layout::Concept layoutT>
@@ -211,6 +246,6 @@ namespace epseon::gpu::cpp::allocation {
     template <layout::Concept layoutT>
     using HostTransferDst =
         Allocation<VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
                    layoutT>;
 } // namespace epseon::gpu::cpp::allocation

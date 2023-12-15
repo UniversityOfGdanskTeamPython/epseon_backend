@@ -7,9 +7,12 @@
 #include "epseon/gpu/common.hpp"
 #include "epseon/gpu/compute/allocation.hpp"
 #include "epseon/gpu/compute/buffer.hpp"
+#include "epseon/gpu/compute/environment.hpp"
 #include "epseon/gpu/compute/layout.hpp"
 #include "epseon/gpu/compute/resources.hpp"
 #include "epseon/gpu/compute/scaling.hpp"
+#include "epseon/gpu/compute/structs.hpp"
+
 #include "fmt/format.h"
 #include "vk_mem_alloc.h"
 #include "vk_mem_alloc_handles.hpp"
@@ -120,7 +123,7 @@ namespace epseon::gpu::cpp {
                    std::shared_ptr<environment::Device>& devicePtr_,
                    std::shared_ptr<scaling::Base>&       scalingPtr_) :
                 Base<resourceT>(devicePtr_, scalingPtr_),
-                resource(resource_){};
+                resource(std::move(resource_)){};
 
             Static(const Static&)     = delete;
             Static(Static&&) noexcept = default;
@@ -145,7 +148,7 @@ namespace epseon::gpu::cpp {
 
     class VibwaResources : public resources::Static {
       public:
-        VibwaResources() = default;
+        using resources::Static::Static;
 
       protected:
         template <typename CallableT>

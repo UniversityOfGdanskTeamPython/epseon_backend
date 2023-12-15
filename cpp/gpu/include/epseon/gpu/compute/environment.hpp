@@ -5,11 +5,6 @@
 #include "epseon/gpu/compute/predecl.hpp"
 
 #include "epseon/gpu/common.hpp"
-#include "epseon/gpu/compute/allocation.hpp"
-#include "epseon/gpu/compute/buffer.hpp"
-#include "epseon/gpu/compute/layout.hpp"
-#include "epseon/gpu/compute/resources.hpp"
-#include "epseon/gpu/compute/scaling.hpp"
 
 #include "fmt/format.h"
 #include "vk_mem_alloc.h"
