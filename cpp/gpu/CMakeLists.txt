@@ -52,6 +52,7 @@ set(epseon_gpu_INCLUDE
     PRIVATE "${PROJECT_SOURCE_DIR}/../include"
     PRIVATE "${REPOSITORY_ROOT}/external/spdlog/include"
     PRIVATE "${REPOSITORY_ROOT}/external/fmt/include"
+    PRIVATE "${REPOSITORY_ROOT}/external/shaderc/libshaderc/include"
     PRIVATE "${REPOSITORY_ROOT}/external/vma_hpp/include"
     PRIVATE "${REPOSITORY_ROOT}/external/vma_hpp/VulkanMemoryAllocator/include"
     PRIVATE "${REPOSITORY_ROOT}/external/pybind11/include"
@@ -62,6 +63,7 @@ set(epseon_gpu_LINK_LIBS
     PRIVATE dl
     PRIVATE fmt::fmt
     PRIVATE Vulkan::Vulkan
+    shaderc_combined
     PRIVATE "${Python3_LIBRARIES}"
 )
 target_include_directories(epseon_gpu
@@ -89,7 +91,7 @@ else()
 endif()
 
 
-file(GLOB_RECURSE files "${PROJECT_SOURCE_DIR}/test/*.cpp")
+file(GLOB_RECURSE files "${PROJECT_SOURCE_DIR}/test/test_*.cpp")
 foreach(file ${files})
     get_filename_component(TEST_NAME ${file} NAME_WLE)
     add_executable(

@@ -37,6 +37,17 @@ namespace epseon::gpu::cpp::allocation {
     struct Allocation {
         using layout_type = layoutT;
 
+        Allocation()                            = default;
+        Allocation(const Allocation& other)     = delete;
+        Allocation(Allocation&& other) noexcept = default;
+
+        ~Allocation() {
+            deallocateBuffers();
+        }
+
+        Allocation& operator=(const Allocation& other)     = default;
+        Allocation& operator=(Allocation&& other) noexcept = default;
+
         [[nodiscard]] static constexpr vk::BufferUsageFlags getBufferUsageFlags() {
             return static_cast<vk::BufferUsageFlags>(bufferUsageFlags);
         }
@@ -55,6 +66,10 @@ namespace epseon::gpu::cpp::allocation {
 
         [[nodiscard]] uint32_t getAllocationBufferCount() const {
             return getScaling().getAllocationBufferCount();
+        }
+
+        [[nodiscard]] uint32_t getDescriptorCount() const {
+            return getAllocationBufferCount();
         }
 
         [[nodiscard]] const scaling::Base& getScaling() const {
@@ -112,7 +127,10 @@ namespace epseon::gpu::cpp::allocation {
             }
         }
 
-        void deallocateBuffers(const layout_type& /*layout*/) {
+        void deallocateBuffers() {
+            if (buffers.empty()) {
+                return;
+            }
             auto bufferCount = getAllocationBufferCount();
 
             for (uint32_t i = 0; i < bufferCount; i++) {
@@ -140,7 +158,7 @@ namespace epseon::gpu::cpp::allocation {
         getDescriptorPoolSize(const layout_type& /*layout*/) const {
             return vk::DescriptorPoolSize()
                 .setType(vk::DescriptorType::eStorageBuffer)
-                .setDescriptorCount(getAllocationBufferCount());
+                .setDescriptorCount(getDescriptorCount());
         }
 
         [[nodiscard]] std::vector<vk::DescriptorBufferInfo>

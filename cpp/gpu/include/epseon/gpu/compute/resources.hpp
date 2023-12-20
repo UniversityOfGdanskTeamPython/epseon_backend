@@ -1,5 +1,6 @@
 #pragma once
 
+#include "epseon/gpu/compute/spirv.hpp"
 #include "epseon/vulkan_headers.hpp"
 
 #include "epseon/gpu/compute/predecl.hpp"
@@ -35,53 +36,50 @@
 
 namespace epseon::gpu::cpp::resources {
 
+    template <class Derived>
     class Base {
       public:
         Base()                      = default;
         Base(const Base& other)     = delete;
         Base(Base&& other) noexcept = default;
 
-        virtual ~Base() {
-            deallocateBuffers();
-        }
+        virtual ~Base() = default;
 
         Base& operator=(const Base& other)     = delete;
         Base& operator=(Base&& other) noexcept = default;
 
-        void prepare(std::shared_ptr<environment::Device>& devicePointer,
+        void prepare(SPIRV&                                bytecode,
+                     std::shared_ptr<environment::Device>& devicePointer,
                      std::shared_ptr<scaling::Base>&       scalingPointer) {
             bind(devicePointer, scalingPointer);
             allocateBuffers();
             createDescriptorPool();
             createDescriptorSets();
             updateDescriptorSets();
-            createPipeline();
+            createPipeline(bytecode);
             createCommandPool();
             createCommandBuffer();
             recordCommandBuffers();
         }
 
-      protected:
         template <typename CallableT>
         void forEachBuffer(CallableT /*callable*/) {
             assert(false && "Missing implementation for forEachBuffer()");
         }
 
+      protected:
         void bind(std::shared_ptr<environment::Device>& devicePointer,
                   std::shared_ptr<scaling::Base>&       scalingPointer) {
-            forEachBuffer([&devicePointer, &scalingPointer](auto& buffer) {
-                buffer.bind(devicePointer, scalingPointer);
-            });
+            this->devicePointer  = devicePointer;
+            this->scalingPointer = scalingPointer;
+            static_cast<Derived*>(this)->forEachBuffer(
+                [&devicePointer, &scalingPointer](auto& buffer) {
+                    buffer.bind(devicePointer, scalingPointer);
+                });
         };
 
         void allocateBuffers() {
-            this->forEachBuffer([](auto& buffer) {
-                buffer.allocateBuffers();
-            });
-        }
-
-        void deallocateBuffers() {
-            this->forEachBuffer([](auto& buffer) {
+            static_cast<Derived*>(this)->forEachBuffer([](auto& buffer) {
                 buffer.allocateBuffers();
             });
         }
@@ -102,12 +100,12 @@ namespace epseon::gpu::cpp::resources {
             std::vector<vk::DescriptorPoolSize> poolSize{};
 
             uint64_t maxPoolSizes = 0;
-            this->forEachBuffer([&maxPoolSizes](auto& /*buffer*/) {
+            static_cast<Derived*>(this)->forEachBuffer([&maxPoolSizes](auto& /*buffer*/) {
                 maxPoolSizes += 1;
             });
             poolSize.reserve(maxPoolSizes);
 
-            this->forEachBuffer([&poolSize](auto& buffer) {
+            static_cast<Derived*>(this)->forEachBuffer([&poolSize](auto& buffer) {
                 poolSize.push_back(buffer.getDescriptorPoolSize());
             });
 
@@ -158,27 +156,27 @@ namespace epseon::gpu::cpp::resources {
         [[nodiscard]] uint32_t getMaxDescriptorSets() {
             uint32_t maxSets = 0;
 
-            forEachBuffer([&maxSets](auto& buffer) {
+            static_cast<Derived*>(this)->forEachBuffer([&maxSets](auto& buffer) {
                 auto bufferMaxSets = buffer.getMaxDescriptorSets();
                 if (bufferMaxSets > maxSets) {
                     maxSets = bufferMaxSets;
                 }
             });
 
-            return maxSets;
+            return (maxSets + 1);
         }
 
-        [[nodiscard]] virtual std::vector<vk::DescriptorSetLayoutBinding>
+        [[nodiscard]] std::vector<vk::DescriptorSetLayoutBinding>
         getDescriptorSetLayoutBindings(uint32_t setIndex) {
             std::vector<vk::DescriptorSetLayoutBinding> setBindings{};
 
             uint64_t maxBindings = 0;
-            forEachBuffer([&maxBindings](auto& /*buffer*/) {
+            static_cast<Derived*>(this)->forEachBuffer([&maxBindings](auto& /*buffer*/) {
                 maxBindings += 1;
             });
             setBindings.reserve(maxBindings);
 
-            forEachBuffer([&setBindings, setIndex](auto& buffer) {
+            static_cast<Derived*>(this)->forEachBuffer([&setBindings, setIndex](auto& buffer) {
                 std::optional<vk::DescriptorSetLayoutBinding> optionalBinding =
                     buffer.getDescriptorSetLayoutBindings(setIndex);
 
@@ -193,7 +191,7 @@ namespace epseon::gpu::cpp::resources {
         void updateDescriptorSets() {
             vk::raii::Device& logicalDevice = getDevice().getLogicalDevice();
 
-            forEachBuffer([&logicalDevice, this](auto& buffer) {
+            static_cast<Derived*>(this)->forEachBuffer([&logicalDevice, this](auto& buffer) {
                 auto     layout       = buffer.getLayout();
                 uint32_t setIndex     = layout.getSet();
                 uint32_t bindingIndex = layout.getSet();
@@ -205,9 +203,13 @@ namespace epseon::gpu::cpp::resources {
             });
         }
 
-        void createPipeline() {
+        void createPipeline(SPIRV& bytecode) {
             vk::raii::Device&                    logicalDevice = getDevice().getLogicalDevice();
             std::vector<vk::DescriptorSetLayout> layouts       = getDescriptorSetLayouts();
+
+            computeShaderModule =
+                std::make_unique<vk::raii::ShaderModule>(std::move(logicalDevice.createShaderModule(
+                    vk::ShaderModuleCreateInfo().setCode(bytecode.getCode()))));
 
             computePipelineLayout = std::make_unique<vk::raii::PipelineLayout>(
                 std::move(logicalDevice.createPipelineLayout(
@@ -219,7 +221,7 @@ namespace epseon::gpu::cpp::resources {
                     vk::ComputePipelineCreateInfo()
                         .setStage(vk::PipelineShaderStageCreateInfo()
                                       .setStage(vk::ShaderStageFlagBits::eCompute)
-                                      // .setModule(*compute_shader_module)
+                                      .setModule(**computeShaderModule)
                                       .setPName("main"))
                         .setLayout(**computePipelineLayout))));
         }
@@ -269,7 +271,7 @@ namespace epseon::gpu::cpp::resources {
                                           {},
                                           {});
 
-            forEachBuffer([&commandBuffer](auto& buffer) {
+            static_cast<Derived*>(this)->forEachBuffer([&commandBuffer](auto& buffer) {
                 buffer.recordHostToDeviceTransfers(commandBuffer);
             });
 
@@ -291,8 +293,8 @@ namespace epseon::gpu::cpp::resources {
                                           {},
                                           {});
 
-            forEachBuffer([&commandBuffer](auto& buffer) {
-                buffer.recordDeviceToHostTransfers();
+            static_cast<Derived*>(this)->forEachBuffer([&commandBuffer](auto& buffer) {
+                buffer.recordDeviceToHostTransfers(commandBuffer);
             });
 
             commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
@@ -337,9 +339,15 @@ namespace epseon::gpu::cpp::resources {
         std::vector<vk::raii::CommandBuffer>       commandBuffers           = {};
         std::unique_ptr<vk::raii::PipelineLayout>  computePipelineLayout    = {};
         std::unique_ptr<vk::raii::Pipeline>        computePipeline          = {};
+        std::unique_ptr<vk::raii::ShaderModule>    computeShaderModule      = {};
     };
 
-    class Dynamic : public Base {
+    class Dynamic : public Base<Dynamic> {
+
+        using inputBufferT     = buffer::HostToDevice<layout::Dynamic>;
+        using temporaryBufferT = buffer::DeviceLocal<layout::Dynamic>;
+        using outputBufferT    = buffer::DeviceToHost<layout::Dynamic>;
+
       public:
         Dynamic(std::vector<layout::Dynamic>&& inputBuffers_,
                 std::vector<layout::Dynamic>&& deviceLocalBuffers_,
@@ -367,7 +375,14 @@ namespace epseon::gpu::cpp::resources {
         Dynamic& operator=(const Dynamic& other)     = delete;
         Dynamic& operator=(Dynamic&& other) noexcept = default;
 
-      protected:
+        inputBufferT& getInput(uint32_t index) {
+            return this->inputBuffers[index];
+        }
+
+        outputBufferT& getOutput(uint32_t index) {
+            return this->outputBuffers[index];
+        }
+
         template <typename CallableT>
         void forEachBuffer(CallableT callable) {
             for (auto& buffer : inputBuffers) {
@@ -382,13 +397,21 @@ namespace epseon::gpu::cpp::resources {
         }
 
       private:
-        std::vector<buffer::HostToDevice<layout::Dynamic>> inputBuffers       = {};
-        std::vector<buffer::DeviceLocal<layout::Dynamic>>  deviceLocalBuffers = {};
-        std::vector<buffer::DeviceToHost<layout::Dynamic>> outputBuffers      = {};
+        std::vector<inputBufferT>     inputBuffers       = {};
+        std::vector<temporaryBufferT> deviceLocalBuffers = {};
+        std::vector<outputBufferT>    outputBuffers      = {};
     };
 
-    class Static : public Base {
+    template <typename Derived>
+    class Static : public Base<Derived> {
       public:
-        using Base::Base;
+        Static()                        = default;
+        Static(const Static& other)     = delete;
+        Static(Static&& other) noexcept = default;
+
+        ~Static() override = default;
+
+        Static& operator=(const Static& other)     = delete;
+        Static& operator=(Static&& other) noexcept = default;
     };
 } // namespace epseon::gpu::cpp::resources

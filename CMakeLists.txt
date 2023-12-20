@@ -42,15 +42,19 @@ message("Python3_SABI_LIBRARIES                 = '${Python3_SABI_LIBRARIES}'")
 message("Python3_RUNTIME_SABI_LIBRARY_DIRS      = '${Python3_RUNTIME_SABI_LIBRARY_DIRS}'")
 message("------------------------------------- end -------------------------------------")
 
-# fmt} is an open-source formatting library providing a fast and safe alternative to C stdio and C++ iostreams.
+
+# {fmt} is an open-source formatting library providing a fast and safe alternative to C stdio and C++ iostreams.
+set(FMT_TEST OFF)
 message("-> Adding external dependency: fmt")
 add_subdirectory("external/fmt")
 
 # Add pybind11, C++ wrapper around Python C API.
+set(PYBIND11_TEST OFF)
 message("-> Adding external dependency: pybind11")
 add_subdirectory("external/pybind11")
 
 # Add Logging library as subdirectory.
+set(SPDLOG_BUILD_TESTS OFF)
 message("-> Adding external dependency: spdlog")
 add_subdirectory("external/spdlog")
 
@@ -58,10 +62,22 @@ add_subdirectory("external/spdlog")
 message("-> Adding external dependency: GoogleTest")
 add_subdirectory("external/googletest")
 
+# Add Glslang as a subdirectory.
+set(GLSLANG_TESTS OFF)
+set(PROJECT_IS_TOP_LEVEL OFF)
+message("-> Adding external dependency: glslang")
+add_subdirectory("external/glslang")
+
+# Add shaderc as a subdirectory.
+set(SHADERC_SKIP_TESTS ON)
+set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+message("-> Adding external dependency: shaderc")
+add_subdirectory("external/shaderc")
+
+# Add Vulkan Memory Allocator Hpp wrapper as a subdirectory
 message("-> Adding external dependency: VulkanMemoryAllocator-Hpp")
 add_subdirectory("external/vma_hpp")
 
-# Enable testing
 enable_testing()
 
 # Include the GoogleTest's cmake functions

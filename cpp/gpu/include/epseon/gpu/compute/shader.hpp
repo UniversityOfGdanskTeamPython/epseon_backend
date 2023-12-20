@@ -1,5 +1,6 @@
 #pragma once
 
+#include "epseon/gpu/compute/spirv.hpp"
 #include "epseon/vulkan_headers.hpp"
 
 #include "epseon/gpu/compute/predecl.hpp"
@@ -60,10 +61,17 @@ namespace epseon::gpu::cpp {
             Base& operator=(const Base&)     = delete;
             Base& operator=(Base&&) noexcept = default;
 
-            void run() {
-                auto& resource = getResource();
-                resource.prepare(this->getDevicePointer(), this->getScalingPointer());
+            void prepare(GLSL& sourceCode) {
+                auto bytecode = sourceCode.compile();
+                prepare(bytecode);
             }
+
+            void prepare(SPIRV& bytecode) {
+                auto& resource = getResource();
+                resource.prepare(bytecode, this->getDevicePointer(), this->getScalingPointer());
+            }
+
+            void run() {}
 
             [[nodiscard]] virtual resourceT&       getResource()       = 0;
             [[nodiscard]] virtual const resourceT& getResource() const = 0;
@@ -145,59 +153,4 @@ namespace epseon::gpu::cpp {
             resourceT resource;
         };
     } // namespace shader
-
-    class VibwaResources : public resources::Static {
-      public:
-        using resources::Static::Static;
-
-      protected:
-        template <typename CallableT>
-        void forEachBuffer(CallableT callable) {
-            callable(configuration);
-            callable(y);
-            callable(buffer0);
-            callable(output);
-        }
-
-      private:
-        struct Configuration {
-            float    mass_atom_0               = {};
-            float    mass_atom_1               = {};
-            float    integration_step          = {};
-            float    min_distance_to_asymptote = {};
-            uint32_t min_level                 = {};
-            uint32_t max_level                 = {};
-        };
-
-        buffer::HostToDevice<layout::Static<Configuration>> configuration{
-            {{.itemCount = 0, .set = 0, .binding = 0}}};
-        buffer::HostToDevice<layout::Static<float>> y{{{.itemCount = 0, .set = 0, .binding = 1}}};
-        buffer::DeviceLocal<layout::Static<float>>  buffer0{
-             {{.itemCount = 0, .set = 0, .binding = 2}}};
-        buffer::DeviceToHost<layout::Static<float>> output{
-            {{.itemCount = 0, .set = 0, .binding = 3}}};
-    };
-
-    template <typename T>
-    void foo() { // NOLINT(misc-definitions-in-headers)
-        const uint64_t batchSize  = 128;
-        const uint64_t bufferSize = 1024;
-
-        std::shared_ptr<environment::Device> device = environment::Device::create(0);
-
-        std::shared_ptr<scaling::Base> scalingPolicy = device->getOptimalScalingPolicy(batchSize);
-
-        shader::Dynamic shader1{
-            resources::Dynamic{
-                {layout::Dynamic{
-                    {.itemCount = bufferSize, .itemSize = sizeof(float), .set = 0, .binding = 0}}},
-                {},
-                {}},
-            device,
-            scalingPolicy};
-
-        shader1.run();
-
-        shader::Static<VibwaResources> shader2{VibwaResources{}, device, scalingPolicy};
-    }
 } // namespace epseon::gpu::cpp

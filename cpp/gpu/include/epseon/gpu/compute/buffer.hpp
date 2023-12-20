@@ -85,7 +85,6 @@ namespace epseon::gpu::cpp::buffer {
         }
 
         virtual void                                  allocateBuffers()      = 0;
-        virtual void                                  deallocateBuffers()    = 0;
         [[nodiscard]] virtual boundAllocationT&       getBoundBuffer()       = 0;
         [[nodiscard]] virtual const boundAllocationT& getBoundBuffer() const = 0;
         virtual void recordHostToDeviceTransfers(vk::raii::CommandBuffer&)   = 0;
@@ -102,10 +101,10 @@ namespace epseon::gpu::cpp::buffer {
 
         [[nodiscard]] DescriptorSetWrite
         getDescriptorSetWrite(vk::raii::DescriptorSet& descriptorSet) {
-            auto buffer = getBoundBuffer();
+            auto& buffer = getBoundBuffer();
 
             DescriptorSetWrite writeInfo;
-            writeInfo.bufferInfo = getBoundBuffer().getBufferInfo();
+            writeInfo.bufferInfo = getBufferInfo();
 
             writeInfo.writeInfo.setDstSet(*descriptorSet)
                 .setDstBinding(getLayout().getBinding())
@@ -117,7 +116,7 @@ namespace epseon::gpu::cpp::buffer {
         }
 
         [[nodiscard]] std::vector<vk::DescriptorBufferInfo> getBufferInfo() const {
-            return getBoundBuffer().getBufferInfo();
+            return getBoundBuffer().getBufferInfo(this->getLayout());
         }
 
       private:
@@ -149,17 +148,12 @@ namespace epseon::gpu::cpp::buffer {
 
         void bind(std::shared_ptr<environment::Device>& devicePointer,
                   std::shared_ptr<scaling::Base>&       scalingPointer) {
-            this->devicePointer  = devicePointer;
-            this->scalingPointer = scalingPointer;
+            Base<layoutT, boundAllocationT>::bind(devicePointer, scalingPointer);
             this->deviceBuffer.bind(devicePointer, scalingPointer);
         }
 
         void allocateBuffers() override {
             deviceBuffer.allocateBuffers(this->getLayout());
-        }
-
-        void deallocateBuffers() override {
-            deviceBuffer.deallocateBuffers(this->getLayout());
         }
 
         [[nodiscard]] boundAllocationT& getBoundBuffer() override {
@@ -212,8 +206,7 @@ namespace epseon::gpu::cpp::buffer {
 
         void bind(std::shared_ptr<environment::Device>& devicePointer,
                   std::shared_ptr<scaling::Base>&       scalingPointer) {
-            this->devicePointer  = devicePointer;
-            this->scalingPointer = scalingPointer;
+            Base<layoutT, boundAllocationT>::bind(devicePointer, scalingPointer);
             this->sourceBuffer.bind(devicePointer, scalingPointer);
             this->destinationBuffer.bind(devicePointer, scalingPointer);
         }
@@ -221,11 +214,6 @@ namespace epseon::gpu::cpp::buffer {
         void allocateBuffers() override {
             sourceBuffer.allocateBuffers(this->getLayout());
             destinationBuffer.allocateBuffers(this->getLayout());
-        }
-
-        void deallocateBuffers() override {
-            sourceBuffer.deallocateBuffers(this->getLayout());
-            destinationBuffer.deallocateBuffers(this->getLayout());
         }
 
         sourceAllocationT& getSourceAllocation() {
@@ -248,7 +236,7 @@ namespace epseon::gpu::cpp::buffer {
 
         virtual const mappedAllocationT& getMappedAllocation() const = 0;
 
-        void fillBuffers(layoutT::fill_function_type fillFunction) {
+        virtual void fillBuffers(layoutT::fill_function_type fillFunction) {
             getMappedAllocation().fillBuffers(fillFunction, this->getLayout());
         }
 

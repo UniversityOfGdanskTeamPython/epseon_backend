@@ -33,6 +33,8 @@ namespace epseon::gpu::cpp {
         class Dynamic;
     } // namespace layout
 
+    class SPIRV;
+
     namespace scaling {
         class Base;
         class BufferArray;
@@ -42,15 +44,18 @@ namespace epseon::gpu::cpp {
     namespace resources {
         template <typename T>
         concept Concept = requires(T                                     t,
+                                   SPIRV&                                bytecode,
                                    std::shared_ptr<environment::Device>& deviceRef,
                                    std::shared_ptr<scaling::Base>&       scalingRef) {
-            { t.prepare(deviceRef, scalingRef) } -> std::same_as<void>;
+            { t.prepare(bytecode, deviceRef, scalingRef) } -> std::same_as<void>;
         };
 
+        template <typename Derived>
         class Base; // NOLINT
 
         class Dynamic; // NOLINT
 
+        template <typename Derived>
         class Static;
     } // namespace resources
 

@@ -52,7 +52,7 @@ namespace epseon::gpu::cpp::environment {
         Device(const Device&)     = delete;
         Device(Device&&) noexcept = default;
 
-        ~Device() {
+        virtual ~Device() {
             // Vulkan Memory Allocator requires manual cleanup invocation.
             allocator->destroy();
         }
@@ -116,7 +116,10 @@ namespace epseon::gpu::cpp::environment {
                                                              std::optional<uint32_t> deviceId) {
             for (vk::raii::PhysicalDevice& physicalDevice : instance.enumeratePhysicalDevices()) {
                 auto props = physicalDevice.getProperties();
-                if (deviceId.has_value() && props.deviceID == deviceId) {
+                if (!deviceId.has_value()) {
+                    return physicalDevice;
+                }
+                if (props.deviceID == deviceId) {
                     return physicalDevice;
                 }
             }

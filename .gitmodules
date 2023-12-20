@@ -17,3 +17,9 @@
 [submodule "external/vma_hpp"]
 	path = external/vma_hpp
 	url = https://github.com/YaaZ/VulkanMemoryAllocator-Hpp
+[submodule "external/shaderc"]
+	path = external/shaderc
+	url = https://github.com/google/shaderc.git
+[submodule "external/glslang"]
+	path = external/glslang
+	url = https://github.com/KhronosGroup/glslang.git

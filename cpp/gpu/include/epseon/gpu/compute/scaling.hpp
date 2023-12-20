@@ -7,6 +7,7 @@
 #include <concepts>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 
 namespace epseon::gpu::cpp {
 
@@ -30,7 +31,7 @@ namespace epseon::gpu::cpp {
             }
 
             [[nodiscard]] virtual uint64_t
-            getAllocationTotalSizeBytes(uint64_t totalSizeBytes) const = 0;
+                getAllocationTotalSizeBytes(uint64_t /*totalSizeBytes*/) const = 0;
 
             [[nodiscard]] virtual uint64_t getAllocationBufferCount() const = 0;
 

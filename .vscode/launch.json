@@ -11,6 +11,18 @@
             "program": "/home/argmaster/.cache/pypoetry/virtualenvs/epseon-backend-dg9HP5DZ-py3.12/bin/python",
             "args": ["-m", "pytest", "-k", "test_submit_task"],
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "CTest StaticCopyThereAndBackOneInstanceTest",
+            "program": "build/cpp/gpu/test_compute",
+            "args": [
+                "--output-on-failure",
+                "-R",
+                "StaticCopyThereAndBackOneInstanceTest"
+            ],
+            "cwd": "${workspaceFolder}/build/"
         }
     ]
 }
