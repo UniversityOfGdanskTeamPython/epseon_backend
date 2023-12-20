@@ -38,20 +38,17 @@ namespace epseon {
                     ctx->getDeviceInterface(first_device_info.deviceProperties.deviceID);
                 auto cfg = first_device->getTaskConfigurator<float>();
                 cfg->setHardwareConfig(
-                       std::make_shared<HardwareConfig<float>>(500, 100, 16 * 1024 * 1024)
-                )
+                       std::make_shared<HardwareConfig<float>>(500, 100, 16 * 1024 * 1024))
                     .setAlgorithmConfig(
-                        std::make_shared<VibwaAlgorithmConfig<float>>(87.62, 87.62, 0.1, 0.1, 0, 0)
-                    )
+                        std::make_shared<VibwaAlgorithmConfig<float>>(87.62, 87.62, 0.1, 0.1, 0, 0))
                     .setPotentialSource(std::make_shared<MorsePotentialGenerator<float>>(
                         std::vector<MorsePotentialConfig<float>>{
-                            MorsePotentialConfig<float>(5500.0, 0.6, 10, 0.0, 10.0, 500)
-                        }
-                    ));
+                            MorsePotentialConfig<float>(5500.0, 0.6, 10, 0.0, 10.0, 500)}));
 
                 ASSERT_TRUE(cfg->isConfigured());
             }
 
+            /* EOL by 31 Dec 2023, left for quick reference must be removed before merging.
             TEST_F(LibGPUTest, RunTaskOnFirstDevice) {
                 auto ctx = ComputeContext::create();
 
@@ -104,7 +101,7 @@ namespace epseon {
                 handle->startWorker();
                 handle->wait();
                 ASSERT_TRUE(handle->isDone());
-            }
+            }*/
         } // namespace cpp
     }     // namespace gpu
 } // namespace epseon

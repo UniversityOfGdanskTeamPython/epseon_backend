@@ -63,7 +63,7 @@ set(epseon_gpu_LINK_LIBS
     PRIVATE dl
     PRIVATE fmt::fmt
     PRIVATE Vulkan::Vulkan
-    shaderc_combined
+    PRIVATE shaderc
     PRIVATE "${Python3_LIBRARIES}"
 )
 target_include_directories(epseon_gpu
