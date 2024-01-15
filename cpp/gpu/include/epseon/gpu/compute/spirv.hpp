@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include <vulkan/vulkan.hpp>
@@ -102,7 +103,9 @@ namespace epseon::gpu::cpp {
         SPIRV& operator=(const SPIRV& other)     = delete;
         SPIRV& operator=(SPIRV&& other) noexcept = default;
 
-        SPIRV static fromGlslFile(std::string filePath, bool optimize = false) {
+        SPIRV static fromGlslFile(std::string      filePath,
+                                  const MacroMapT& macroDefs,
+                                  bool             optimize = false) {
             std::fstream file(filePath, std::ios::ate | std::ios::binary);
 
             if (!file.is_open()) {
@@ -113,28 +116,32 @@ namespace epseon::gpu::cpp {
             std::ostringstream buf;
             buf << file.rdbuf();
 
-            return fromGlslSource(buf.str(), optimize);
+            return fromGlslSource(buf.str(), macroDefs, optimize);
         }
 
-        SPIRV static fromGlslSource(const std::string& sourceCode, bool optimize = true) {
+        SPIRV static fromGlslSource(const std::string& sourceCode,
+                                    const MacroMapT&   macroDefs,
+                                    bool               optimize = true) {
             std::string shaderName = CRC64().computeHex(
                 {reinterpret_cast // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
                  <const uint8_t*>(sourceCode.data()),
                  sourceCode.size()});
 
-            return SPIRV{compileFile(shaderName, sourceCode, optimize)};
+            return SPIRV{compileShaderSource(shaderName, sourceCode, macroDefs, optimize)};
         }
 
         // Compiles a shader to a SPIR-V binary. Returns the binary as
         // a vector of 32-bit words.
-        static std::vector<uint32_t> compileFile(const std::string& sourceName,
-                                                 const std::string& source,
-                                                 bool               optimize = true) {
+        static std::vector<uint32_t> compileShaderSource(const std::string& sourceName,
+                                                         const std::string& source,
+                                                         const MacroMapT&   macroDefs,
+                                                         bool               optimize = true) {
             shaderc::Compiler       compiler;
             shaderc::CompileOptions options;
 
-            options.AddMacroDefinition("SCALING_LARGE_BUFFER", "1");
-            options.AddMacroDefinition("SCALING_BUFFER_ARRAY", "0");
+            for (const auto& [key, value] : macroDefs) {
+                options.AddMacroDefinition(key, value);
+            }
             options.SetTargetEnvironment(shaderc_target_env_vulkan, vk::ApiVersion12);
 
             if (optimize) {
@@ -182,6 +189,10 @@ namespace epseon::gpu::cpp {
         explicit GLSL(std::string_view sourceCode_) :
             sourceCode(sourceCode_) {}
 
+        GLSL(std::string_view sourceCode_, MacroMapT&& macroDefs_) :
+            sourceCode(sourceCode_),
+            macroDefs(macroDefs_) {}
+
         GLSL(const GLSL& other)     = delete;
         GLSL(GLSL&& other) noexcept = default;
 
@@ -191,7 +202,7 @@ namespace epseon::gpu::cpp {
         GLSL& operator=(GLSL&& other) noexcept = default;
 
         [[nodiscard]] SPIRV compile() const {
-            return SPIRV::fromGlslSource(getSource());
+            return SPIRV::fromGlslSource(getSource(), getMacroDefs());
         }
 
         [[nodiscard]] std::string& getSource() {
@@ -202,7 +213,22 @@ namespace epseon::gpu::cpp {
             return this->sourceCode;
         }
 
+        [[nodiscard]] MacroMapT& getMacroDefs() {
+            return this->macroDefs;
+        }
+
+        [[nodiscard]] const MacroMapT& getMacroDefs() const {
+            return this->macroDefs;
+        }
+
+        void updateMacroDefs(const MacroMapT& source) {
+            for (const auto& [key, value] : source) {
+                this->macroDefs[key] = value;
+            }
+        }
+
       private:
-        std::string sourceCode;
+        std::string sourceCode = {};
+        MacroMapT   macroDefs  = {};
     };
 } // namespace epseon::gpu::cpp

@@ -72,6 +72,7 @@ target_include_directories(epseon_gpu
 target_link_libraries(epseon_gpu
     ${epseon_gpu_LINK_LIBS}
 )
+add_subdirectory("shaders")
 
 
 if(WIN32)

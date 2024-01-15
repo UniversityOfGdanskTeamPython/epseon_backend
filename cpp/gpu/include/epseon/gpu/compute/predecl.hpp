@@ -1,12 +1,14 @@
 #pragma once
 
-#include "epseon/gpu/compute/layout.hpp"
+#include "epseon/vulkan_headers.hpp"
+
 #include "vk_mem_alloc.h"
 #include <vulkan/vulkan_core.h>
 
 #include <concepts>
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
 #include <vulkan/vulkan_enums.hpp>
 
 namespace epseon::gpu::cpp {
@@ -25,15 +27,17 @@ namespace epseon::gpu::cpp {
             { t.getBinding() } -> std::same_as<uint32_t>;
         };
 
-        class Base;
+        class Base; // NOLINT(bugprone-forward-declaration-namespace)
 
         template <typename contentT>
         class Static;
 
-        class Dynamic;
-    } // namespace layout
+        class Dynamic; // NOLINT(bugprone-forward-declaration-namespace)
+    }                  // namespace layout
 
     class SPIRV;
+    class GLSL;
+    using MacroMapT = std::unordered_map<std::string, std::string>;
 
     namespace scaling {
         class Base;

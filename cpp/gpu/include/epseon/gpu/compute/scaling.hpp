@@ -3,6 +3,7 @@
 #include "epseon/vulkan_headers.hpp"
 
 #include "epseon/gpu/compute/predecl.hpp"
+#include "epseon/gpu/compute/spirv.hpp"
 
 #include <concepts>
 #include <cstdint>
@@ -30,6 +31,8 @@ namespace epseon::gpu::cpp {
                 return this->batchSize;
             }
 
+            [[nodiscard]] virtual MacroMapT getImpliedMacroDefs() const = 0;
+
             [[nodiscard]] virtual uint64_t
                 getAllocationTotalSizeBytes(uint64_t /*totalSizeBytes*/) const = 0;
 
@@ -52,8 +55,15 @@ namespace epseon::gpu::cpp {
             BufferArray& operator=(const BufferArray&)     = default;
             BufferArray& operator=(BufferArray&&) noexcept = default;
 
+            [[nodiscard]] MacroMapT getImpliedMacroDefs() const override {
+                return {{"SCALING_LARGE_BUFFER", "0"},
+                        {"SCALING_BUFFER_ARRAY", "1"},
+                        {"BATCH_SIZE", std::to_string(getBatchSize())}};
+            }
+
             [[nodiscard]] uint64_t
             getAllocationTotalSizeBytes(uint64_t totalSizeBytes) const override {
+
                 return totalSizeBytes;
             }
 
@@ -74,6 +84,12 @@ namespace epseon::gpu::cpp {
 
             LargeBuffer& operator=(const LargeBuffer&)     = default;
             LargeBuffer& operator=(LargeBuffer&&) noexcept = default;
+
+            [[nodiscard]] MacroMapT getImpliedMacroDefs() const override {
+                return {{"SCALING_LARGE_BUFFER", "1"},
+                        {"SCALING_BUFFER_ARRAY", "0"},
+                        {"BATCH_SIZE", std::to_string(getBatchSize())}};
+            }
 
             [[nodiscard]] uint64_t
             getAllocationTotalSizeBytes(uint64_t totalSizeBytes) const override {

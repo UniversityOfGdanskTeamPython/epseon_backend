@@ -30,6 +30,7 @@ def run_per_device_id() -> pytest.MarkDecorator:
         device_ids = [
             device_info.device_properties.device_id
             for device_info in ctx.get_physical_device_info()
+            if device_info.device_properties.device_id != 0
         ]
 
     return pytest.mark.parametrize("device_id", device_ids)

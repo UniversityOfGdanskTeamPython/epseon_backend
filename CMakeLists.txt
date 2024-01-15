@@ -63,7 +63,9 @@ message("-> Adding external dependency: GoogleTest")
 add_subdirectory("external/googletest")
 
 # Add Glslang as a subdirectory.
+set(ENABLE_CTEST OFF)
 set(GLSLANG_TESTS OFF)
+set(BUILD_TESTING OFF)
 set(PROJECT_IS_TOP_LEVEL OFF)
 message("-> Adding external dependency: glslang")
 add_subdirectory("external/glslang")

@@ -133,7 +133,6 @@ namespace epseon::gpu::cpp {
             GET_ITEM_BUFFER_2(i) = GET_ITEM_BUFFER_1(i);
         }
     }
-
         )"};
         }
     };
@@ -148,8 +147,10 @@ namespace epseon::gpu::cpp {
         shader::Static<StaticThereAndBackResource> shaderInstance{
             StaticThereAndBackResource{}, device, scalingPolicy};
 
-        auto shaderCode = ComputeFrameworkTest::getShaderSource();
-        shaderInstance.prepare(shaderCode);
+        auto shaderGlsl = ComputeFrameworkTest::getShaderSource();
+        shaderGlsl.updateMacroDefs(scalingPolicy->getImpliedMacroDefs());
+
+        shaderInstance.prepare(shaderGlsl);
         shaderInstance.getResource().getInput().fillBuffers(
             [](uint32_t bufferIndex,
                float*   beginMappedData,
@@ -171,9 +172,6 @@ namespace epseon::gpu::cpp {
         std::shared_ptr<scaling::Base> scalingPolicy =
             std::make_shared<scaling::LargeBuffer>(batchSize);
 
-        auto shaderGlsl  = ComputeFrameworkTest::getShaderSource();
-        auto shaderSpirv = SPIRV::fromGlslSource(shaderGlsl.getSource());
-
         shader::Dynamic shaderInstance{
             resources::Dynamic{
                 std::vector<layout::Dynamic>{layout::Dynamic{
@@ -184,6 +182,10 @@ namespace epseon::gpu::cpp {
                     {.itemCount = bufferSize, .itemSize = sizeof(float), .set = 0, .binding = 2}}}},
             device,
             scalingPolicy};
+
+        auto shaderGlsl = ComputeFrameworkTest::getShaderSource();
+        shaderGlsl.updateMacroDefs(scalingPolicy->getImpliedMacroDefs());
+        auto shaderSpirv = shaderGlsl.compile();
 
         shaderInstance.prepare(shaderSpirv);
         shaderInstance.getResource().getInput(0).fillBuffers(

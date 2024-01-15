@@ -3,6 +3,7 @@
 #include "epseon/vulkan_headers.hpp"
 
 #include "epseon/gpu/compute/predecl.hpp"
+#include "epseon/gpu/compute/scaling.hpp"
 
 #include "epseon/gpu/common.hpp"
 
